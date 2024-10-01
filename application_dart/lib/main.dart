@@ -1,7 +1,9 @@
+import 'package:application_dart/view_models/localization.dart';
 import 'package:application_dart/views/Login/first.dart';
 import 'package:application_dart/views/navigation/background.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -9,7 +11,15 @@ void main() {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]).then((_) {
-    runApp(MyApp());
+    runApp(
+      // Wrap the app with MultiProvider to include your LocationViewModel
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => LocationViewModel()), // Add LocationViewModel provider here
+        ],
+        child: MyApp(),
+      ),
+    );
   });
 }
 
