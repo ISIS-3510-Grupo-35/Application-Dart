@@ -22,7 +22,7 @@ void setupLocator() {
 
   // ViewModels
   locator.registerFactory(() => ParkingLotViewModel());
-  locator.registerFactory(() => ReservationViewModel());
-  locator.registerFactory(() => ReviewViewModel());
-  locator.registerFactory(() => UserViewModel());
+  locator.registerFactory(() => ReservationsViewModel());
+  locator.registerFactory(() => ReviewsViewModel());
+  locator.registerFactory(() => UsersViewModel());
 }
