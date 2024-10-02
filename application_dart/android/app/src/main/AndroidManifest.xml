@@ -1,9 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.application_dart">
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    
     <application
         android:label="application_dart"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        
+        <meta-data android:name="com.google.android.geo.API_KEY"
+               android:value="AIzaSyA3eH1agsc9M4XQo4xe0SzobaYjgrJ3nc4"/>
+       
         <activity
             android:name=".MainActivity"
             android:exported="true"
