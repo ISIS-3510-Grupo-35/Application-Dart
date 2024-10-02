@@ -245,9 +245,10 @@ class _MapComponentState extends State<MapComponent> {
                 TextButton(
                   onPressed: () {
                     setState(() {
+                      parkingLotVM.leaveParking();
                       _showDialog = false;
                     });
-                    parkingLotVM.leaveParking(); // Reset the parked state
+                     // Reset the parked state
                     print("User left the parking.");
                   },
                   child: const Text("Leave"),

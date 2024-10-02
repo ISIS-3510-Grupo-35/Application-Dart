@@ -15,6 +15,7 @@ class ParkingLotViewModel extends ChangeNotifier {
   Set<Marker> _markers = {};
   Marker? _parkedMarker; // Marker for the parked location
   ParkingLot? _nearestParkingLot;
+  ParkingLot? _parkedParkingLot;
 
   // New properties for parked location and parked status
   bool _isParked = false;
@@ -60,43 +61,49 @@ class ParkingLotViewModel extends ChangeNotifier {
   final Duration _leaveTriggerDuration = const Duration(minutes: 15); // 15-minute timer duration
 
   // Fetch parking lots and generate markers
-  Future<void> fetchParkingLots() async {
-    _fetchingData = true;
-    _errorMessage = null;
+  void fetchParkingLots() {
+  _fetchingData = true;
+  _errorMessage = null;
+
+  _repository.listenToParkingLots().listen((parkingLots) {
+    _parkingLots = parkingLots;
+    _generateMarkers(); // Update markers with new data
+    _fetchingData = false;
     notifyListeners();
-
-    try {
-      _parkingLots = await _repository.getParkingLots();
-
-      // Generate markers from the fetched parking lots
-      _generateMarkers();
-    } catch (e) {
-      _errorMessage = 'Failed to load ParkingLots: $e';
-      print(_errorMessage); // Print the error for debugging purposes
-    } finally {
-      _fetchingData = false;
-      notifyListeners();
-    }
-  }
+  }, onError: (error) {
+    _errorMessage = 'Failed to load ParkingLots: $error';
+    _fetchingData = false;
+    notifyListeners();
+  });
+}
 
   // Generate markers from the parking lots
   void _generateMarkers() {
-    _markers = _parkingLots.map((ParkingLot parkingLot) {
-      return Marker(
-        markerId: MarkerId(parkingLot.name),
-        position: LatLng(parkingLot.latitude ?? 0.0, parkingLot.longitude ?? 0.0),
-        infoWindow: InfoWindow(
-          title: parkingLot.name,
-          snippet: "Capacity: ${parkingLot.capacity}, Rate: ${parkingLot.fullRate}",
-        ),
-      );
-    }).toSet();
+  _markers = _parkingLots.map((ParkingLot parkingLot) {
+    // Check if parking lot capacity is zero
+    final bool isFull = (parkingLot.capacity ?? 0) <= 0;
 
-    // Add the parked location marker if the user is parked
-    if (_isParked && _parkedLocation != null) {
-      _markers.add(_parkedMarker!);
-    }
+    // Create a marker with a custom color or icon if the parking lot is full
+    return Marker(
+      markerId: MarkerId(parkingLot.name),
+      position: LatLng(parkingLot.latitude ?? 0.0, parkingLot.longitude ?? 0.0),
+      // Use a different icon color if the parking lot is full
+      icon: isFull
+          ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed) // Red marker for full parking lots
+          : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), // Green marker for available parking lots
+      infoWindow: InfoWindow(
+        title: parkingLot.name,
+        snippet: isFull ? "Parking Full - Requires Key" : "Capacity: ${parkingLot.capacity}, Rate: ${parkingLot.fullRate}",
+      ),
+    );
+  }).toSet();
+
+  // Add the parked location marker if the user is parked
+  if (_isParked && _parkedLocation != null) {
+    _markers.add(_parkedMarker!);
   }
+}
+
 
   // Check if the user is near any parking lot and update state if necessary
   void checkProximityToMarkers(Position? userPosition) {
@@ -134,37 +141,69 @@ class ParkingLotViewModel extends ChangeNotifier {
   }
 
   // Set the parked location and add a blue marker to the map
-  void setParkedLocation(LatLng location) {
-    _isParked = true;
-    _parkedLocation = location;
-    _parkedTime = DateTime.now();
+  Future<void> setParkedLocation(LatLng location) async {
+  _isParked = true;
+  _parkedLocation = location;
+  _parkedTime = DateTime.now();
 
-    // Create a blue marker with an onTap event to show the "Pay/Leave" dialog
-    _parkedMarker = Marker(
-      markerId: const MarkerId('parked_marker'),
-      position: location,
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue), // Blue marker for parked location
-      infoWindow: const InfoWindow(title: "Parked Car", snippet: "This is where you parked."),
-      onTap: () {
-        notifyListeners(); // Trigger the dialog to open
-      },
-    );
-    _generateMarkers(); // Update markers
-    _startLeaveTimer(); // Start the leave timer
-    notifyListeners();
+  // Set the parked parking lot to the nearest parking lot
+  _parkedParkingLot = _nearestParkingLot;
+
+  // Create a blue marker with an onTap event to show the "Pay/Leave" dialog
+  _parkedMarker = Marker(
+    markerId: const MarkerId('parked_marker'),
+    position: location,
+    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    infoWindow: const InfoWindow(title: "Parked Car", snippet: "This is where you parked."),
+    onTap: () {
+      notifyListeners();
+    },
+  );
+
+  // Decrement the parking lot capacity in Firestore
+  if (_nearestParkingLot != null) {
+    try {
+      final currentCapacity = _nearestParkingLot!.capacity ?? 0;
+      if (currentCapacity > 0) {
+        final newCapacity = currentCapacity - 1;
+        await _repository.updateParkingLotCapacity(_nearestParkingLot!.name, newCapacity);
+      }
+    } catch (e) {
+      print("Failed to update capacity: $e");
+    }
   }
+
+  _generateMarkers(); // Update markers
+  _startLeaveTimer(); // Start the leave timer
+  notifyListeners();
+}
+
 
   // Remove parked status when the user leaves the parking
-  void leaveParking() {
-    _isParked = false;
-    _parkedLocation = null;
-    _parkedTime = null;
-    _parkedMarker = null; // Remove parked marker
-    _leaveTimer?.cancel(); // Cancel the leave timer
-    _leaveTimer = null;
-    _generateMarkers(); // Update markers to remove the parked marker
-    notifyListeners();
+  Future<void> leaveParking() async {
+  if (_isParked && _parkedParkingLot != null) { // Use _parkedParkingLot instead of _nearestParkingLot
+    try {
+      // Increment the parking lot capacity in Firestore when leaving
+      final newCapacity = (_parkedParkingLot!.capacity ?? 0) + 1;
+      await _repository.updateParkingLotCapacity(_parkedParkingLot!.name, newCapacity);
+    } catch (e) {
+      print("Failed to update capacity when leaving: $e");
+    }
   }
+
+  // Reset the parked state and remove markers
+  _isParked = false;
+  _parkedLocation = null;
+  _parkedTime = null;
+  _parkedMarker = null; // Remove parked marker
+  _parkedParkingLot = null; // Reset the parked parking lot reference
+  _leaveTimer?.cancel(); // Cancel the leave timer
+  _leaveTimer = null;
+
+  _generateMarkers(); // Update markers to remove the parked marker
+  notifyListeners();
+}
+
 
   // Reset the timer without showing the dialog immediately
   void resetLeaveTimer() {

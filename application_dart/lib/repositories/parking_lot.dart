@@ -5,14 +5,21 @@ class ParkingLotRepository {
   final ParkingLotService _service = ParkingLotService();
 
   Future<List<ParkingLot>> getParkingLots() async {
-    // Call the Firestore service to fetch the parking lots
     final List<ParkingLot> parkingLots = await _service.fetchParkingLots();
-
-    // If the list is not empty, return it. Otherwise, throw an exception.
     if (parkingLots.isNotEmpty) {
       return parkingLots;
     } else {
       throw Exception('Failed to load parking lots');
     }
+  }
+
+  // Update parking lot capacity through the service
+  Future<void> updateParkingLotCapacity(String parkingLotId, int newCapacity) async {
+    await _service.updateParkingLotCapacity(parkingLotId, newCapacity);
+  }
+
+  // Listen to parking lot updates in real-time
+  Stream<List<ParkingLot>> listenToParkingLots() {
+    return _service.listenToParkingLots();
   }
 }
