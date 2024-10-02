@@ -1,18 +1,19 @@
-import 'package:application_dart/view_models/localization.dart';
-import 'package:application_dart/views/Login/first.dart';
-import 'package:application_dart/views/navigation/background.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
-import 'package:application_dart/locator.dart';
+import 'package:application_dart/locator.dart'; // Import service locator
+import 'package:application_dart/view_models/parking_lot.dart';
+import 'package:application_dart/view_models/localization.dart';
+import 'package:application_dart/views/Login/first.dart';
+import 'package:application_dart/views/navigation/background.dart';
 
 void main() async {
-  setupLocator();
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure widgets binding is initialized
+    // Initialize Firebase
   await Firebase.initializeApp();
+  // Initialize GetIt service locator
+  setupLocator();
 
   // Set preferred device orientations
   await SystemChrome.setPreferredOrientations([
@@ -20,17 +21,18 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Wrap MyApp with providers before calling runApp()
+  // Run the app wrapped with the necessary providers
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => LocationViewModel()), // Add LocationViewModel provider here
+        ChangeNotifierProvider(create: (_) => LocationViewModel()), // Register LocationViewModel
+        ChangeNotifierProvider(create: (_) => ParkingLotViewModel()), // Register ParkingLotViewModel
+        // Add more providers here if needed
       ],
-      child: MyApp(),
+      child: const MyApp(), // Use MyApp as the root widget
     ),
   );
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -42,7 +44,6 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      // Define your routes
       initialRoute: '/',
       routes: {
         '/': (context) => const FirstScreen(),

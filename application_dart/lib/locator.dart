@@ -15,10 +15,11 @@ final locator = GetIt.instance;
 
 void setupLocator() {
   // Repositories
-  locator.registerLazySingleton(() => ParkingLotRepository());
   locator.registerLazySingleton(() => ReservationRepository());
   locator.registerLazySingleton(() => ReviewRepository());
   locator.registerLazySingleton(() => UserAppRepository());
+
+  locator.registerSingleton<ParkingLotRepository>(ParkingLotRepository());
 
   // ViewModels
   locator.registerFactory(() => ParkingLotViewModel());
