@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:application_dart/models/parking_lot.dart';
 import 'package:application_dart/repositories/parking_lot.dart';
@@ -72,7 +72,9 @@ class ParkingLotViewModel extends ChangeNotifier {
       _generateMarkers();
     } catch (e) {
       _errorMessage = 'Failed to load ParkingLots: $e';
-      print(_errorMessage); // Print the error for debugging purposes
+      if (kDebugMode) {
+        print(_errorMessage);
+      } // Print the error for debugging purposes
     } finally {
       _fetchingData = false;
       notifyListeners();

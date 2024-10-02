@@ -56,7 +56,7 @@ class _ProfileComponentState extends State<ProfileComponent> {
         backgroundColor: const Color(0xFFF6E7D8), // Updated yellow color for app bar
       ),
       body: FutureBuilder<DocumentSnapshot>(
-        future: _firestore.collection('users').doc(_uid).get(),
+        future: _firestore.collection('users_android').doc(_uid).get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

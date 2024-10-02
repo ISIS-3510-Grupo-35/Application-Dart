@@ -28,12 +28,12 @@ class UserApp {
     });
 
     factory UserApp.fromJson(Map<String, dynamic> json) => UserApp(
-        id: json["uid"],
+        id: json["id"],
         balance: json["balance"],
         driver: json["driver"],
         email: json["email"],
-        firstName: json["first_name"],
-        lastName: json["last_name"],
+        firstName: json["firstName"],
+        lastName: json["lastName"],
         password: json["password"],
     );
 

@@ -1,5 +1,8 @@
+// ignore_for_file: non_constant_identifier_names, library_private_types_in_public_api
+
 import 'package:application_dart/models/userapp.dart';
 import 'package:application_dart/models/global_vars.dart';
+import 'package:application_dart/view_models/userapp.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -178,12 +181,6 @@ class _SignupFormComponentState extends State<SignupFormComponent> {
                         // Handle create account logic here
 
                         _signUp();
-                        print("Creating account with:");
-                        print("First Name: ${_firstNameController.text}");
-                        print("Last Name: ${_lastNameController.text}");
-                        print("Email: ${_emailController.text}");
-                        print("Password: ${_passwordController.text}");
-                        print("Driver: $_selectedOption");
                       },
                       child: const Icon(
                       Icons.arrow_forward,
@@ -221,15 +218,17 @@ class _SignupFormComponentState extends State<SignupFormComponent> {
 
     if (user != null) {
       var uuid = user.uid;
-      UserApp.fromJson({
-        'first_name': _firstNameController.text,
-        'last_name': _lastNameController.text,
+      UserApp newUser = UserApp.fromJson({
+        'firstName': _firstNameController.text,
+        'lastName': _lastNameController.text,
         'email': email,
         'password': password,
         'driver': _selectedOption == 'Driver' ? true : false,
         'balance': 0.0,
-        'uid': uuid,
+        'id': uuid,
       });
+      UserAppViewModel userAppViewModel = UserAppViewModel();
+      userAppViewModel.createUserApp(newUser, uuid);
       GlobalVars().uid = uuid; 
       Navigator.pushNamed(context, '/home');
     }
