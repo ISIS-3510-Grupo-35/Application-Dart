@@ -1,7 +1,9 @@
-import 'package:application_dart/firebase_auth/firebase_auth_services.dart';
+import 'package:application_dart/models/userapp.dart';
+import 'package:application_dart/models/global_vars.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:application_dart/view_models/firebase_auth.dart';
 
 class SignupFormComponent extends StatefulWidget {
   final VoidCallback onBackToLogin; // Callback to switch back to login view
@@ -25,6 +27,8 @@ class _SignupFormComponentState extends State<SignupFormComponent> {
   final List<String> _dropdownOptions = ["Driver", "Parking Owner"];
   String? _selectedOption;
 
+  final _FirebaseAuthViewModel = FirebaseAuthViewModel();
+
   @override
   void dispose() {
     // Dispose of all controllers to prevent memory leaks
@@ -34,9 +38,6 @@ class _SignupFormComponentState extends State<SignupFormComponent> {
     _passwordController.dispose();
     super.dispose();
   }
-
-  final FirebaseAuthServices _auth = FirebaseAuthServices();
-
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -182,7 +183,7 @@ class _SignupFormComponentState extends State<SignupFormComponent> {
                         print("Last Name: ${_lastNameController.text}");
                         print("Email: ${_emailController.text}");
                         print("Password: ${_passwordController.text}");
-                        print("Selected Option: $_selectedOption");
+                        print("Driver: $_selectedOption");
                       },
                       child: const Icon(
                       Icons.arrow_forward,
@@ -215,13 +216,24 @@ class _SignupFormComponentState extends State<SignupFormComponent> {
     String email = _emailController.text;
     String password = _passwordController.text;
 
-    User? user = await _auth.signUpWithEmailAndPassword(email, password);
-    if(user != null){
-      if (kDebugMode) {
-        print("Sign up successful");
-      }
+    await _FirebaseAuthViewModel.register(email, password);
+    User? user = _FirebaseAuthViewModel.currentUser;
+
+    if (user != null) {
+      var uuid = user.uid;
+      UserApp.fromJson({
+        'first_name': _firstNameController.text,
+        'last_name': _lastNameController.text,
+        'email': email,
+        'password': password,
+        'driver': _selectedOption == 'Driver' ? true : false,
+        'balance': 0.0,
+        'uid': uuid,
+      });
+      GlobalVars().uid = uuid; 
       Navigator.pushNamed(context, '/home');
-    } else {
+    }
+    else {
       if (kDebugMode) {
         print("Sign up failed");
       }

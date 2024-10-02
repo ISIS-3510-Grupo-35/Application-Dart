@@ -3,28 +3,34 @@ import 'package:application_dart/views/Login/first.dart';
 import 'package:application_dart/views/navigation/background.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
+import 'package:application_dart/locator.dart';
 
 void main() async {
+  setupLocator();
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
   await Firebase.initializeApp();
-  runApp(const MyApp());
-  SystemChrome.setPreferredOrientations([
+
+  // Set preferred device orientations
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
-  ]).then((_) {
-    runApp(
-      // Wrap the app with MultiProvider to include your LocationViewModel
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => LocationViewModel()), // Add LocationViewModel provider here
-        ],
-        child: MyApp(),
-      ),
-    );
-  });
+  ]);
+
+  // Wrap MyApp with providers before calling runApp()
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LocationViewModel()), // Add LocationViewModel provider here
+      ],
+      child: MyApp(),
+    ),
+  );
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

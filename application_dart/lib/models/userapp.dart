@@ -1,42 +1,39 @@
 // To parse this JSON data, do
 //
-//     final user = userFromJson(jsonString);
+//     final UserApp = UserAppFromJson(jsonString);
 
 import 'dart:convert';
 
-User userFromJson(String str) => User.fromJson(json.decode(str));
+UserApp UserAppFromJson(String str) => UserApp.fromJson(json.decode(str));
 
-String userToJson(User data) => json.encode(data.toJson());
+String UserAppToJson(UserApp data) => json.encode(data.toJson());
 
-class User {
-    int id;
-    int balance;
+class UserApp {
+    String id;
+    double balance;
     bool driver;
     String email;
-    List<int> favorites;
     String firstName;
     String lastName;
     String password;
 
-    User({
+    UserApp({
         required this.id,
         required this.balance,
         required this.driver,
         required this.email,
-        required this.favorites,
         required this.firstName,
         required this.lastName,
         required this.password,
     });
 
-    factory User.fromJson(Map<String, dynamic> json) => User(
-        id: json["id"],
+    factory UserApp.fromJson(Map<String, dynamic> json) => UserApp(
+        id: json["uid"],
         balance: json["balance"],
         driver: json["driver"],
         email: json["email"],
-        favorites: List<int>.from(json["favorites"].map((x) => x)),
-        firstName: json["firstName"],
-        lastName: json["lastName"],
+        firstName: json["first_name"],
+        lastName: json["last_name"],
         password: json["password"],
     );
 
@@ -45,7 +42,6 @@ class User {
         "balance": balance,
         "driver": driver,
         "email": email,
-        "favorites": List<dynamic>.from(favorites.map((x) => x)),
         "firstName": firstName,
         "lastName": lastName,
         "password": password,

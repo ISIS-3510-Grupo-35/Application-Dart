@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api
 
-import 'package:application_dart/firebase_auth/firebase_auth_services.dart';
+import 'package:application_dart/services/firebase_auth_services.dart';
+import 'package:application_dart/models/global_vars.dart';
 import 'package:application_dart/views/Login/sign_up.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -163,6 +164,8 @@ class _LoginFormComponentState extends State<LoginFormComponent> {
     String password = _passwordController.text;
 
     User? user = await _auth.signInWithEmailAndPassword(email, password);
+    var uuid = user?.uid;
+    GlobalVars().uid = uuid; 
     if(user != null){
       if (kDebugMode) {
         print("Sign up successful");
