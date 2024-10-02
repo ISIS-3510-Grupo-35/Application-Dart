@@ -10,7 +10,7 @@ class ParkingLot {
   final String? image;
   final double? latitude;
   final double? longitude;
-  final String? name;
+  final String name;
   final TimeOfDay? openingTime;
   final double? priceMinute;
   final double? review;
@@ -25,7 +25,7 @@ class ParkingLot {
     this.image,
     this.latitude,
     this.longitude,
-    this.name,
+    required this.name,
     this.openingTime,
     this.priceMinute,
     this.review,
