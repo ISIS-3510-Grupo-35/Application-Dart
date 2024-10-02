@@ -1,4 +1,9 @@
+// ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api
+
+import 'package:application_dart/firebase_auth/firebase_auth_services.dart';
 import 'package:application_dart/views/Login/sign_up.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class LoginFormComponent extends StatefulWidget {
@@ -14,6 +19,7 @@ class _LoginFormComponentState extends State<LoginFormComponent> {
   // State variable to track whether the user is in "login" or "signup" mode
   String formType = "login";
 
+  final FirebaseAuthServices _auth = FirebaseAuthServices();
   // Define separate controllers for the login form
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -106,14 +112,12 @@ class _LoginFormComponentState extends State<LoginFormComponent> {
                     SizedBox(
                     width: screenWidth * 0.5,
                     child: ElevatedButton(
+                      
                       style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFF4B324),
                       ),
                       onPressed: () {
-                      print("Logging in with:");
-                      print("Email: ${_emailController.text}");
-                      print("Password: ${_passwordController.text}");
-                      Navigator.pushNamed(context, '/home');
+                        _signIn();
                       },
                       child: const Icon(
                       Icons.arrow_forward,
@@ -154,4 +158,21 @@ class _LoginFormComponentState extends State<LoginFormComponent> {
       ),
     );
   }
+  void _signIn() async{
+    String email = _emailController.text;
+    String password = _passwordController.text;
+
+    User? user = await _auth.signInWithEmailAndPassword(email, password);
+    if(user != null){
+      if (kDebugMode) {
+        print("Sign up successful");
+      }
+      Navigator.pushNamed(context, '/home');
+    } else {
+      if (kDebugMode) {
+        print("Sign up failed");
+      }
+    }
+  }
 }
+

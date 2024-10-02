@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "967705491203",
+    "project_id": "unipark-b2324",
+    "storage_bucket": "unipark-b2324.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:967705491203:android:0e23c62ef038a60e635b36",
+        "android_client_info": {
+          "package_name": "com.example.application_dart"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPgvI9jKA4NRsi6_FFEenFapW3ycZd6L8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

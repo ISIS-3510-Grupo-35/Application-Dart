@@ -1,4 +1,7 @@
+import 'package:application_dart/firebase_auth/firebase_auth_services.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class SignupFormComponent extends StatefulWidget {
   final VoidCallback onBackToLogin; // Callback to switch back to login view
@@ -31,6 +34,8 @@ class _SignupFormComponentState extends State<SignupFormComponent> {
     _passwordController.dispose();
     super.dispose();
   }
+
+  final FirebaseAuthServices _auth = FirebaseAuthServices();
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +175,8 @@ class _SignupFormComponentState extends State<SignupFormComponent> {
                       ),
                       onPressed: () {
                         // Handle create account logic here
+
+                        _signUp();
                         print("Creating account with:");
                         print("First Name: ${_firstNameController.text}");
                         print("Last Name: ${_lastNameController.text}");
@@ -203,5 +210,21 @@ class _SignupFormComponentState extends State<SignupFormComponent> {
         ),
       ),
     );
+  }
+    void _signUp() async{
+    String email = _emailController.text;
+    String password = _passwordController.text;
+
+    User? user = await _auth.signUpWithEmailAndPassword(email, password);
+    if(user != null){
+      if (kDebugMode) {
+        print("Sign up successful");
+      }
+      Navigator.pushNamed(context, '/home');
+    } else {
+      if (kDebugMode) {
+        print("Sign up failed");
+      }
+    }
   }
 }
