@@ -12,4 +12,9 @@ class UserAppRepository {
       throw Exception('Failed to load UserApp');
     }
   }
+
+  Future<UserApp> createUserApp(UserApp user, String uuid) async {
+    await _service.createUserApp(user, uuid);
+    return user;
+  }
 }

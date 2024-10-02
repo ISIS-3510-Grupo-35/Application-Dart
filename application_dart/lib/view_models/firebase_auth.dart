@@ -6,7 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 
 class FirebaseAuthViewModel extends ChangeNotifier {
-  final FirebaseAuthRepository _authRepository = GetIt.instance<FirebaseAuthRepository>();
 
   User? _currentUser;
   User? get currentUser => _currentUser;
@@ -16,6 +15,8 @@ class FirebaseAuthViewModel extends ChangeNotifier {
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
+
+  final FirebaseAuthRepository _authRepository = GetIt.instance<FirebaseAuthRepository>();
 
   /// Register a new user with email and password.
   Future<void> register(String email, String password) async {

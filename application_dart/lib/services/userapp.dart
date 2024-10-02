@@ -9,7 +9,7 @@ class UserAppService {
   FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<Map<String, dynamic>?> fetchUserApp(String uuid) async {
-    var user = await _firestore.collection('users').doc(uuid).get();
+    var user = await _firestore.collection('users_android').doc(uuid).get();
     return user.data();
   }
 
@@ -18,7 +18,7 @@ class UserAppService {
   }
 
   Future<void> createUserApp(UserApp user, String uuid) async {
-    await _firestore.collection('users').doc(uuid).set(user.toJson());
+    await _firestore.collection('users_android').doc(uuid).set(user.toJson());
   }
 
   Future<http.Response> updateUserApp(int id, Map<String, dynamic> UserApp) async {

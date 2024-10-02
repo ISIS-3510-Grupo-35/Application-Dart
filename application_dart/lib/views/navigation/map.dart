@@ -32,6 +32,7 @@ class _MapComponentState extends State<MapComponent> {
   }
 
   @override
+  
   Widget build(BuildContext context) {
     return Scaffold(
       body: Consumer2<ParkingLotViewModel, LocationViewModel>(

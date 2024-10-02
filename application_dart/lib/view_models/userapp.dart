@@ -21,6 +21,16 @@ class UserAppViewModel extends ChangeNotifier {
     return _UserApp;
   }
 
+  Future<UserApp?> createUserApp(UserApp user, String uuid) async {
+    try {
+      _UserApp = await _repository.createUserApp(user, uuid);
+      notifyListeners();
+    } catch (e) {
+      throw Exception('Failed to create UserApp: $e');
+    }
+    return _UserApp;
+  }
+
   set userApp(UserApp? userApp) {
     _UserApp = userApp;
     notifyListeners();
