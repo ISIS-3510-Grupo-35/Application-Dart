@@ -135,6 +135,30 @@ class ParkingLotViewModel extends ChangeNotifier {
     }
   }
 
+  List<ParkingLot> getParkingLotsInProximity(Position? userPosition, double proximityRange) {
+  // Return an empty list if no position is provided or there are no parking lots to check
+  if (userPosition == null || _parkingLots.isEmpty) return [];
+
+  List<ParkingLot> nearbyParkingLots = [];
+
+  for (var parkingLot in _parkingLots) {
+    final distance = _calculateDistance(
+      userPosition.latitude,
+      userPosition.longitude,
+      parkingLot.latitude ?? 0.0,
+      parkingLot.longitude ?? 0.0,
+    );
+
+    // If the parking lot is within the specified proximity range, add it to the list
+    if (distance <= proximityRange) {
+      nearbyParkingLots.add(parkingLot);
+    }
+  }
+
+  return nearbyParkingLots; // Return the list of nearby parking lots
+}
+
+
   // Set the parked location and add a blue marker to the map
   void setParkedLocation(LatLng location) {
     _isParked = true;

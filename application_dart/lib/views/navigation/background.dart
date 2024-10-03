@@ -1,5 +1,8 @@
+// ignore_for_file: library_private_types_in_public_api
+
 import 'package:application_dart/views/navigation/map.dart'; // Import your MapComponent
 import 'package:application_dart/views/navigation/profile.dart';
+import 'package:application_dart/views/navigation/search.dart';
 import 'package:flutter/material.dart';
 
 class BackgroundScreen extends StatefulWidget {
@@ -14,10 +17,10 @@ class _BackgroundScreenState extends State<BackgroundScreen> {
 
   // List of widgets corresponding to each BottomNavigationBar item
   final List<Widget> _widgetOptions = <Widget>[
-    MapComponent(), // Reference to MapComponent
-    const PlaceholderWidget(text: 'Search Screen'), // Placeholder for Search screen
+    const MapComponent(), // Reference to MapComponent
+    const ParkingLotSearchNearbyWidget(),
     const PlaceholderWidget(text: 'Favorites Screen'), // Placeholder for Favorites screen
-    ProfileComponent(), // Reference to ProfileComponent
+    const ProfileComponent(), // Reference to ProfileComponent
   ];
 
   // Callback function to handle bottom navbar item taps
