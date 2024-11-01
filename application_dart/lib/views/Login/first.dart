@@ -1,5 +1,6 @@
 // ignore_for_file: library_private_types_in_public_api
 
+import 'package:application_dart/views/widgets/wrapper_connectivity.dart';
 import 'package:application_dart/views/Login/form.dart';
 import 'package:flutter/material.dart';
 
@@ -15,29 +16,39 @@ class _FirstScreenState extends State<FirstScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4B324),
-      body: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            SizedBox(height: screenHeight * 0.01),
-            Image.asset(
-              'images/UniPark.png',
-              width: screenWidth * 0.6,
-              height: screenHeight * 0.15,
-            ),
-            SizedBox(height: screenHeight * 0.01),
-            // Conditionally show either the initial view or the login form
-            if (!_showLoginForm) _buildInitialView(screenHeight, screenWidth),
-            if (_showLoginForm)
-              LoginFormComponent(
-                onClose: _handleLoginClose, // Pass the callback to close login
-              ),
-          ],
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4B324),
+        body: ConnectivityWrapper(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        SizedBox(height: MediaQuery.of(context).size.height * 0.01),
+                        Image.asset(
+                          'images/UniPark.png',
+                          width: MediaQuery.of(context).size.width * 0.6,
+                          height: MediaQuery.of(context).size.height * 0.15,
+                        ),
+                        SizedBox(height: MediaQuery.of(context).size.height * 0.01),
+                        if (!_showLoginForm) _buildInitialView(MediaQuery.of(context).size.height, MediaQuery.of(context).size.width),
+                        if (_showLoginForm)
+                          LoginFormComponent(
+                            onClose: _handleLoginClose,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

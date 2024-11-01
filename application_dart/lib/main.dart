@@ -1,3 +1,4 @@
+import 'package:application_dart/services/connectivity.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -27,7 +28,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => LocationViewModel()), // Register LocationViewModel
         ChangeNotifierProvider(create: (_) => ParkingLotViewModel()), // Register ParkingLotViewModel
-        // Add more providers here if needed
+         Provider<ConnectivityService>(create: (_) => ConnectivityService(), dispose: (_, service) => service.dispose(),),
       ],
       child: const MyApp(), // Use MyApp as the root widget
     ),
