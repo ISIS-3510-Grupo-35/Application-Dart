@@ -1,4 +1,5 @@
 import 'package:application_dart/view_models/parking_lot.dart';
+import 'package:application_dart/view_models/reservation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -14,18 +15,76 @@ class ParkingLotDetailScreen extends StatefulWidget {
 
 class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
   bool isReserved = false;
+  final TextEditingController _licensePlateController = TextEditingController();
 
-  void _toggleReservation(ParkingLotViewModel parkingLotVM) {
+  @override
+  void initState() {
+    super.initState();
+    _checkActiveReservation();
+  }
+
+  void _checkActiveReservation() {
+    final reservationVM = Provider.of<ReservationViewModel>(context, listen: false);
     setState(() {
-      isReserved = !isReserved;
+      isReserved = reservationVM.isReserved();
     });
-    // Update the reservation status in the provider if necessary
-    parkingLotVM.updateReservationStatus(widget.parkingLotId, isReserved);
+  }
+
+  Future<void> _handleReservation(ReservationViewModel reservationVM) async {
+    try {
+      if (!isReserved) {
+        // Show a dialog or input field to get additional reservation details like license plate
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Enter License Plate'),
+              content: TextField(
+                controller: _licensePlateController,
+                decoration: const InputDecoration(
+                  labelText: 'License Plate',
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    await reservationVM.addReservation(
+                      widget.parkingLotId,
+                      DateTime.now(),
+                      _licensePlateController.text,
+                    );
+                    setState(() {
+                      isReserved = true;
+                    });
+                  },
+                  child: const Text('Confirm'),
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        await reservationVM.cancelReservation();
+        setState(() {
+          isReserved = false;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update reservation: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final parkingLotVM = Provider.of<ParkingLotViewModel>(context);
+    final reservationVM = Provider.of<ReservationViewModel>(context);
     final parkingLot = parkingLotVM.getParkingLotById(widget.parkingLotId);
 
     if (parkingLot == null) {
@@ -38,7 +97,7 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(parkingLot.name),
-        backgroundColor: const Color(0xFFF4B324), // Updated color scheme
+        backgroundColor: const Color(0xFFF4B324),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -68,20 +127,20 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
                 Positioned(
                   bottom: 16,
                   left: 16,
-                  right: 16, 
+                  right: 16,
                   child: Container(
-                  color: Colors.transparent, 
-                  padding: const EdgeInsets.all(8.0), 
-                  child: Text(
-                    parkingLot.name,
-                    style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24, 
-                    fontWeight: FontWeight.bold,
+                    color: Colors.transparent,
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      parkingLot.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
-                    overflow: TextOverflow.ellipsis, 
-                    maxLines: 1, 
-                  ),
                   ),
                 ),
               ],
@@ -161,11 +220,11 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
                   // Reservation status
                   Center(
                     child: Text(
-                      isReserved ? 'Reserved' : 'Available',
+                      isReserved ? 'You have an active reservation' : 'Available for reservation',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: isReserved ? Colors.green : Colors.red,
+                        color: isReserved ? Colors.red : Colors.green ,
                       ),
                     ),
                   ),
@@ -174,7 +233,7 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
                   // Reservation button
                   Center(
                     child: ElevatedButton(
-                      onPressed: () => _toggleReservation(parkingLotVM),
+                      onPressed: () => _handleReservation(reservationVM),
                       child: Text(isReserved ? 'Cancel Reservation' : 'Reserve'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
