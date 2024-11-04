@@ -1,38 +1,55 @@
-// ignore_for_file: depend_on_referenced_packages
-
-import 'package:http/http.dart' as http;
+import 'package:application_dart/models/reservation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ReservationService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<http.Response> fetchReservations() async {
-    return await http.get(Uri.parse('apiUrl'));
+  Future<Reservation?> fetchReservationByUserID() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? userUid = prefs.getString('user_uid');
+      QuerySnapshot snapshot = await _firestore
+          .collection('Reservations')
+          .where('userID', isEqualTo: userUid)
+          .where('status', isEqualTo: 'created')
+          .limit(1)
+          .get();
+      if (snapshot.docs.isNotEmpty) {
+        return Reservation.fromJson(snapshot.docs.first.data() as Map<String, dynamic>);
+      }
+      return null;
+    } catch (e) {
+      print("Error fetching reservation: $e");
+      return null;
+    }
   }
 
-  Future<http.Response> fetchReservationById(int id) async {
-    return await http.get(Uri.parse('apiUrl/$id'));
+  Future<bool> addReservation(Reservation reservation) async {
+    try {
+      await _firestore.collection('Reservations').add(reservation.toJson());
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
-  Future<http.Response> createReservation(Map<String, dynamic> reservation) async {
-    return await http.post(
-      Uri.parse('apiUrl'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: reservation,
-    );
+Future<bool> cancelReservationByUserID() async {
+  try {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userUid = prefs.getString('user_uid');
+    QuerySnapshot snapshot = await _firestore
+        .collection('Reservations')
+        .where('userID', isEqualTo: userUid)
+        .where('status', isEqualTo: 'created')
+        .limit(1)
+        .get();
+    for (var doc in snapshot.docs) {
+      await doc.reference.update({'status': 'cancelled'});
+    }
+    return true;
+  } catch (e) {
+    return false;
   }
-
-  Future<http.Response> updateReservation(int id, Map<String, dynamic> reservation) async {
-    return await http.put(
-      Uri.parse('apiUrl/$id'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: reservation,
-    );
-  }
-
-  Future<http.Response> deleteReservation(int id) async {
-    return await http.delete(Uri.parse('apiUrl/$id'));
-  }
+}
 }
