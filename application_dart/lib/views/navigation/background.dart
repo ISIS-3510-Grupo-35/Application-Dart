@@ -2,7 +2,7 @@
 
 import 'package:application_dart/views/navigation/map.dart'; // Import your MapComponent
 import 'package:application_dart/views/navigation/profile.dart';
-import 'package:application_dart/views/navigation/search.dart';
+import 'package:application_dart/views/navigation/search/search.dart';
 import 'package:flutter/material.dart';
 
 class BackgroundScreen extends StatefulWidget {
@@ -18,8 +18,8 @@ class _BackgroundScreenState extends State<BackgroundScreen> {
   // List of widgets corresponding to each BottomNavigationBar item
   final List<Widget> _widgetOptions = <Widget>[
     const MapComponent(), // Reference to MapComponent
-    const ParkingLotSearchNearbyWidget(),
-    const PlaceholderWidget(text: 'Favorites Screen'), // Placeholder for Favorites screen
+    const ParkingLotList(), // Placeholder for Favorites screen
+    const Placeholder(),
     const ProfileComponent(), // Reference to ProfileComponent
   ];
 

@@ -77,6 +77,10 @@ class ParkingLotViewModel extends ChangeNotifier {
   });
 }
 
+  ParkingLot? getParkingLotById(String address) {
+    return parkingLots.firstWhere((lot) => lot.address == address);
+  }
+
   // Generate markers from the parking lots
   void _generateMarkers() {
   _markers = _parkingLots.map((ParkingLot parkingLot) {
@@ -246,5 +250,9 @@ class ParkingLotViewModel extends ChangeNotifier {
   // Calculate the distance between two geographic points (Haversine formula)
   double _calculateDistance(double startLatitude, double startLongitude, double endLatitude, double endLongitude) {
     return Geolocator.distanceBetween(startLatitude, startLongitude, endLatitude, endLongitude);
+  }
+
+  void updateReservationStatus(String parkingLotId, bool isReserved) {
+    //TODO
   }
 }
