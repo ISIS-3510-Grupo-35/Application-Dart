@@ -11,15 +11,17 @@ class ReservationViewModel extends ChangeNotifier {
   bool fetchingData = false;
 
 
-  Future<void> fetchReservations() async {
+  Future<Reservation?> fetchReservations() async {
     fetchingData = true;
     try {
       _reservation = await _repository.getReservationsByUserId();
       notifyListeners();
+      fetchingData = false;
+
+      return _reservation;
     } catch (e) {
       throw Exception('Failed to load reservations: $e');
     }
-    fetchingData = false;
   }
 
   bool isReserved() {
