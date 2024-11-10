@@ -7,7 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 
 class ParkingLotViewModel extends ChangeNotifier {
-  final ParkingLotRepository _repository = GetIt.instance<ParkingLotRepository>();
+  final ParkingLotRepository _repository =
+      GetIt.instance<ParkingLotRepository>();
 
   List<ParkingLot> _parkingLots = [];
   bool _fetchingData = false;
@@ -56,26 +57,44 @@ class ParkingLotViewModel extends ChangeNotifier {
     notifyListeners(); // Notify listeners whenever the nearest parking lot changes
   }
 
-  final double _proximityThreshold = 500; // Define proximity threshold in meters
-  final double _parkedProximityThreshold = 50; // Proximity threshold to detect return to parked location
-  final Duration _leaveTriggerDuration = const Duration(minutes: 15); // 15-minute timer duration
+  final double _proximityThreshold =
+      500; // Define proximity threshold in meters
+  final double _parkedProximityThreshold =
+      50; // Proximity threshold to detect return to parked location
+  final Duration _leaveTriggerDuration =
+      const Duration(minutes: 15); // 15-minute timer duration
 
   // Fetch parking lots and generate markers
-  void fetchParkingLots() {
-  _fetchingData = true;
-  _errorMessage = null;
+  Future<void> fetchParkingLots() async {
+    _fetchingData = true;
+    _errorMessage = null;
+    final Completer<void> completer = Completer<void>();
 
-  _repository.listenToParkingLots().listen((parkingLots) {
-    _parkingLots = parkingLots;
-    _generateMarkers(); // Update markers with new data
-    _fetchingData = false;
-    notifyListeners();
-  }, onError: (error) {
-    _errorMessage = 'Failed to load ParkingLots: $error';
-    _fetchingData = false;
-    notifyListeners();
-  });
-}
+    _repository.listenToParkingLots().listen((parkingLots) {
+      _parkingLots = parkingLots;
+      _generateMarkers(); // Update markers with new data
+      _fetchingData = false;
+
+      // Complete the completer on the first data load
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+
+      notifyListeners();
+    }, onError: (error) {
+      _errorMessage = 'Failed to load ParkingLots: $error';
+      _fetchingData = false;
+
+      // Complete the completer in case of an error
+      if (!completer.isCompleted) {
+        completer.completeError(error);
+      }
+
+      notifyListeners();
+    });
+
+    return completer.future; // Return the Future to await
+  }
 
   ParkingLot? getParkingLotById(String address) {
     return parkingLots.firstWhere((lot) => lot.address == address);
@@ -83,31 +102,34 @@ class ParkingLotViewModel extends ChangeNotifier {
 
   // Generate markers from the parking lots
   void _generateMarkers() {
-  _markers = _parkingLots.map((ParkingLot parkingLot) {
-    // Check if parking lot capacity is zero
-    final bool isFull = (parkingLot.capacity ?? 0) <= 0;
+    _markers = _parkingLots.map((ParkingLot parkingLot) {
+      final bool isFull = (parkingLot.capacity ?? 0) <= 0;
 
-    // Create a marker with a custom color or icon if the parking lot is full
-    return Marker(
-      markerId: MarkerId(parkingLot.name),
-      position: LatLng(parkingLot.latitude ?? 0.0, parkingLot.longitude ?? 0.0),
-      // Use a different icon color if the parking lot is full
-      icon: isFull
-          ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed) // Red marker for full parking lots
-          : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), // Green marker for available parking lots
-      infoWindow: InfoWindow(
-        title: parkingLot.name,
-        snippet: isFull ? "Parking Full - Requires Key" : "Capacity: ${parkingLot.capacity}, Rate: ${parkingLot.fullRate}",
-      ),
-    );
-  }).toSet();
+      return Marker(
+        markerId: MarkerId(parkingLot.name),
+        position:
+            LatLng(parkingLot.latitude ?? 0.0, parkingLot.longitude ?? 0.0),
+        icon: isFull
+            ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed)
+            : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        infoWindow: InfoWindow(
+          title: parkingLot.name,
+          snippet: isFull
+              ? "Parking Full - Requires Key"
+              : "Current capacity: ${parkingLot.capacity}, Rate: ${parkingLot.fullRate}",
+        ),
+      );
+    }).toSet();
 
-  // Add the parked location marker if the user is parked
-  if (_isParked && _parkedLocation != null) {
-    _markers.add(_parkedMarker!);
+    if (_isParked && _parkedLocation != null) {
+      _markers.add(_parkedMarker!);
+    }
+
+    if (_parkedParkingLot != null) {
+      _markers.removeWhere(
+          (marker) => marker.markerId.value == _parkedParkingLot!.name);
+    }
   }
-}
-
 
   // Check if the user is near any parking lot and update state if necessary
   void checkProximityToMarkers(Position? userPosition) {
@@ -144,94 +166,123 @@ class ParkingLotViewModel extends ChangeNotifier {
     }
   }
 
-  List<ParkingLot> getParkingLotsInProximity(Position? userPosition, double proximityRange) {
-  // Return an empty list if no position is provided or there are no parking lots to check
-  if (userPosition == null || _parkingLots.isEmpty) return [];
+  List<ParkingLot> getParkingLotsInProximity(
+      Position? userPosition, double proximityRange) {
+    // Return an empty list if no position is provided or there are no parking lots to check
+    if (userPosition == null || _parkingLots.isEmpty) return [];
 
-  List<ParkingLot> nearbyParkingLots = [];
+    List<ParkingLot> nearbyParkingLots = [];
 
-  for (var parkingLot in _parkingLots) {
-    final distance = _calculateDistance(
-      userPosition.latitude,
-      userPosition.longitude,
-      parkingLot.latitude ?? 0.0,
-      parkingLot.longitude ?? 0.0,
-    );
+    for (var parkingLot in _parkingLots) {
+      final distance = _calculateDistance(
+        userPosition.latitude,
+        userPosition.longitude,
+        parkingLot.latitude ?? 0.0,
+        parkingLot.longitude ?? 0.0,
+      );
 
-    // If the parking lot is within the specified proximity range, add it to the list
-    if (distance <= proximityRange) {
-      nearbyParkingLots.add(parkingLot);
+      // If the parking lot is within the specified proximity range, add it to the list
+      if (distance <= proximityRange) {
+        nearbyParkingLots.add(parkingLot);
+      }
     }
+
+    return nearbyParkingLots; // Return the list of nearby parking lots
   }
-
-  return nearbyParkingLots; // Return the list of nearby parking lots
-}
-
 
   // Set the parked location and add a blue marker to the map
-  Future<void> setParkedLocation(LatLng location) async {
-  _isParked = true;
-  _parkedLocation = location;
-  _parkedTime = DateTime.now();
+  Future<void> setParkedLocation(ParkingLot parkingLot,
+      {bool state = false}) async {
+    _isParked = true;
+    _parkedLocation =
+        LatLng(parkingLot.latitude ?? 0.0, parkingLot.longitude ?? 0.0);
+    _parkedTime = DateTime.now();
 
-  // Set the parked parking lot to the nearest parking lot
-  _parkedParkingLot = _nearestParkingLot;
+    // Set the parked parking lot to the nearest parking lot
+    _parkedParkingLot = parkingLot;
 
-  // Create a blue marker with an onTap event to show the "Pay/Leave" dialog
-  _parkedMarker = Marker(
-    markerId: const MarkerId('parked_marker'),
-    position: location,
-    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-    infoWindow: const InfoWindow(title: "Parked Car", snippet: "This is where you parked."),
-    onTap: () {
-      notifyListeners();
-    },
-  );
+    // Create a blue marker with an onTap event to show the "Pay/Leave" dialog
+    _parkedMarker = Marker(
+      markerId: const MarkerId('parked_marker'),
+      position: _parkedLocation!,
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+      infoWindow: InfoWindow(
+          title: "Parked Car",
+          snippet: "${parkingLot.name} is where you parked."),
+      onTap: () {
+        notifyListeners();
+      },
+    );
 
-  // Decrement the parking lot capacity in Firestore
-  if (_nearestParkingLot != null) {
-    try {
-      final currentCapacity = _nearestParkingLot!.capacity ?? 0;
-      if (currentCapacity > 0) {
-        final newCapacity = currentCapacity - 1;
-        await _repository.updateParkingLotCapacity(_nearestParkingLot!.name, newCapacity);
+    _markers.add(_parkedMarker!); 
+
+    //remove the marker of the parking lot
+    _markers.removeWhere((marker) => marker.markerId.value == parkingLot.name);
+
+    // Decrement the parking lot capacity in Firestore
+    if (_fetchingData == false) {
+      if (_nearestParkingLot != null) {
+        try {
+          var i = 0;
+          var currentCapacity = _nearestParkingLot!.capacity ?? 0;
+          while (i < _parkingLots.length) {
+            if (_parkingLots[i].name == _nearestParkingLot!.name) {
+              currentCapacity = _parkingLots[i].capacity ?? 0;
+              break;
+            }
+            i++;
+          }
+
+          if (currentCapacity > 0) {
+            final newCapacity = currentCapacity - 1;
+            await _repository.updateParkingLotCapacity(
+                _nearestParkingLot!.name, newCapacity);
+          }
+        } catch (e) {
+          print("Failed to update capacity: $e");
+        }
       }
-    } catch (e) {
-      print("Failed to update capacity: $e");
     }
+
+    _startLeaveTimer(); // Start the leave timer
+    notifyListeners();
   }
-
-  _generateMarkers(); // Update markers
-  _startLeaveTimer(); // Start the leave timer
-  notifyListeners();
-}
-
 
   // Remove parked status when the user leaves the parking
   Future<void> leaveParking() async {
-  if (_isParked && _parkedParkingLot != null) { // Use _parkedParkingLot instead of _nearestParkingLot
-    try {
-      // Increment the parking lot capacity in Firestore when leaving
-      final newCapacity = (_parkedParkingLot!.capacity ?? 0) + 1;
-      await _repository.updateParkingLotCapacity(_parkedParkingLot!.name, newCapacity);
-    } catch (e) {
-      print("Failed to update capacity when leaving: $e");
+    if (_isParked && _parkedParkingLot != null) {
+      // Use _parkedParkingLot instead of _nearestParkingLot
+      try {
+        var i = 0;
+        var newCapacity = _parkedParkingLot!.capacity ?? 0;
+        while (i < _parkingLots.length) {
+          if (_parkingLots[i].name == _parkedParkingLot!.name) {
+            newCapacity = _parkingLots[i].capacity ?? 0;
+            break;
+          }
+          i++;
+        }
+
+        newCapacity = newCapacity + 1;
+        await _repository.updateParkingLotCapacity(
+            _parkedParkingLot!.name, newCapacity);
+      } catch (e) {
+        print("Failed to update capacity when leaving: $e");
+      }
     }
+
+    // Reset the parked state and remove markers
+    _isParked = false;
+    _parkedLocation = null;
+    _parkedTime = null;
+    _parkedMarker = null; // Remove parked marker
+    _parkedParkingLot = null; // Reset the parked parking lot reference
+    _leaveTimer?.cancel(); // Cancel the leave timer
+    _leaveTimer = null;
+
+    _generateMarkers(); // Update markers to remove the parked marker
+    notifyListeners();
   }
-
-  // Reset the parked state and remove markers
-  _isParked = false;
-  _parkedLocation = null;
-  _parkedTime = null;
-  _parkedMarker = null; // Remove parked marker
-  _parkedParkingLot = null; // Reset the parked parking lot reference
-  _leaveTimer?.cancel(); // Cancel the leave timer
-  _leaveTimer = null;
-
-  _generateMarkers(); // Update markers to remove the parked marker
-  notifyListeners();
-}
-
 
   // Reset the timer without showing the dialog immediately
   void resetLeaveTimer() {
@@ -248,11 +299,9 @@ class ParkingLotViewModel extends ChangeNotifier {
   }
 
   // Calculate the distance between two geographic points (Haversine formula)
-  double _calculateDistance(double startLatitude, double startLongitude, double endLatitude, double endLongitude) {
-    return Geolocator.distanceBetween(startLatitude, startLongitude, endLatitude, endLongitude);
-  }
-
-  void updateReservationStatus(String parkingLotId, bool isReserved) {
-    //TODO
+  double _calculateDistance(double startLatitude, double startLongitude,
+      double endLatitude, double endLongitude) {
+    return Geolocator.distanceBetween(
+        startLatitude, startLongitude, endLatitude, endLongitude);
   }
 }

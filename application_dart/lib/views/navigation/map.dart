@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:application_dart/models/parking_lot.dart';
+import 'package:application_dart/view_models/parked.dart';
 import 'package:application_dart/view_models/parking_lot.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -17,6 +18,7 @@ class _MapComponentState extends State<MapComponent> {
   GoogleMapController? _mapController;
   final LatLng _defaultLocation = const LatLng(4.7110, -74.0721);
   bool _showDialog = false;
+  bool _loading = true; // Loading state
   ParkingLot? _nearestParkingLot;
   final Map<String, Timer> _declinedParkingLots = {}; // Track declined parking lots
   Timer? _leaveTimer; // Timer to track 15 minutes after parking
@@ -24,22 +26,50 @@ class _MapComponentState extends State<MapComponent> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Fetch parking lots when the component initializes
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final parkingLotVM = Provider.of<ParkingLotViewModel>(context, listen: false);
-      parkingLotVM.fetchParkingLots();
+      final parkedVM = Provider.of<ParkedViewModel>(context, listen: false);
+
+      // Indicate loading started
+      setState(() {
+        _loading = true;
+      });
+
+      try {
+        await parkingLotVM.fetchParkingLots();
+        await parkedVM.fetchParkedCar();
+
+        if (parkedVM.parked != null) {
+          final parkingLot = parkingLotVM.parkingLots.firstWhere(
+            (lot) => lot.address == parkedVM.parked!.parking,
+            orElse: () => ParkingLot(name: 'Unknown'),
+          );
+
+          if (parkingLot.name != 'Unknown') {
+            parkingLotVM.setParkedLocation(parkingLot, state: true);
+          }
+        }
+      } catch (error) {
+        print('Error loading parking lots or parked car data: $error');
+      } finally {
+        // Indicate loading is done
+        setState(() {
+          _loading = false;
+        });
+      }
     });
   }
 
   @override
-  
   Widget build(BuildContext context) {
     return Scaffold(
       body: Consumer2<ParkingLotViewModel, LocationViewModel>(
         builder: (context, parkingLotVM, locationVM, child) {
-          // Schedule the checkProximity call to occur after the build is completed
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _checkProximity(parkingLotVM, locationVM);
+            if (!_loading) {
+              _checkProximity(parkingLotVM, locationVM);
+            }
           });
 
           return Stack(
@@ -48,7 +78,8 @@ class _MapComponentState extends State<MapComponent> {
                 onMapCreated: _onMapCreated,
                 initialCameraPosition: CameraPosition(
                   target: locationVM.currentPosition != null
-                      ? LatLng(locationVM.currentPosition!.latitude, locationVM.currentPosition!.longitude)
+                      ? LatLng(locationVM.currentPosition!.latitude,
+                          locationVM.currentPosition!.longitude)
                       : _defaultLocation,
                   zoom: 11.0,
                 ),
@@ -63,21 +94,21 @@ class _MapComponentState extends State<MapComponent> {
                 myLocationButtonEnabled: false,
                 zoomControlsEnabled: false,
               ),
-              if (parkingLotVM.fetchingData)
-                const Center(child: CircularProgressIndicator()),
+              if (parkingLotVM.fetchingData || _loading)
+                const Center(child: CircularProgressIndicator()), // Show loading indicator
               Positioned(
                 left: 16,
                 bottom: 16,
                 child: FloatingActionButton(
                   onPressed: _centerOnUserLocation,
-                  child: const Icon(Icons.my_location),
                   mini: true,
+                  child: const Icon(Icons.my_location),
                 ),
               ),
               if (_showDialog && _nearestParkingLot != null)
-                _buildParkingDialog(_nearestParkingLot!), // Parking dialog
+                _buildParkingBanner(_nearestParkingLot!), // Parking banner
               if (_showDialog && parkingLotVM.isParked)
-                _buildPayOrLeaveDialog(parkingLotVM), // Pay/Leave dialog
+                _buildPayOrLeaveBanner(parkingLotVM), // Pay/Leave banner
             ],
           );
         },
@@ -85,23 +116,22 @@ class _MapComponentState extends State<MapComponent> {
     );
   }
 
-  void _checkProximity(ParkingLotViewModel parkingLotVM, LocationViewModel locationVM) {
+  void _checkProximity(
+      ParkingLotViewModel parkingLotVM, LocationViewModel locationVM) {
     if (locationVM.currentPosition != null) {
       parkingLotVM.checkProximityToMarkers(locationVM.currentPosition);
 
-      // Show "Do you want to park?" dialog if near a parking lot
-      if (parkingLotVM.nearestParkingLot != null &&
+      if (!_loading && parkingLotVM.nearestParkingLot != null &&
           !_declinedParkingLots.containsKey(parkingLotVM.nearestParkingLot!.name)) {
         setState(() {
           _nearestParkingLot = parkingLotVM.nearestParkingLot;
           _showDialog = true;
         });
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          parkingLotVM.nearestParkingLot = null; // Reset after showing dialog to prevent duplicate dialogs
+          parkingLotVM.nearestParkingLot = null;
         });
-      } 
-      // Show "Pay/Leave" dialog if near parked location and 15 minutes have passed
-      else if (parkingLotVM.isParked && parkingLotVM.parkedLocation != null && (_leaveTimer == null || !_leaveTimer!.isActive)) {
+      } else if (parkingLotVM.isParked && parkingLotVM.parkedLocation != null &&
+          (_leaveTimer == null || !_leaveTimer!.isActive)) {
         setState(() {
           _showDialog = true;
         });
@@ -126,132 +156,201 @@ class _MapComponentState extends State<MapComponent> {
     if (locationVM.currentPosition != null) {
       _mapController?.animateCamera(
         CameraUpdate.newLatLng(
-          LatLng(locationVM.currentPosition!.latitude, locationVM.currentPosition!.longitude),
+          LatLng(locationVM.currentPosition!.latitude,
+              locationVM.currentPosition!.longitude),
         ),
       );
     }
   }
 
   // Dialog to ask if user wants to park near a parking lot
-  Widget _buildParkingDialog(ParkingLot parkingLot) {
-    return Center(
-      child: Container(
+  // Parking banner when user is near a parking lot
+Widget _buildParkingBanner(ParkingLot parkingLot) {
+  return Positioned(
+    top: 16,
+    left: 16,
+    right: 16,
+    child: Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 6,
+      child: Padding(
         padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black26)],
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("You're near ${parkingLot.name}!", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text("Do you want to park here? Capacity: ${parkingLot.capacity}, Rate: ${parkingLot.fullRate}"),
-            const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _showDialog = false;
-                      // Reset timer to prevent the dialog from showing up again for 15 minutes if user declines
-                      _declinedParkingLots[parkingLot.name] = Timer(const Duration(minutes: 15), () {
-                        setState(() {
-                          _declinedParkingLots.remove(parkingLot.name);
-                        });
-                      });
-                    });
-                  },
-                  child: const Text("No"),
-                ),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _showDialog = false;
-                    });
-                    // Save the parked location
-                    final locationVM = Provider.of<LocationViewModel>(context, listen: false);
-                    final parkingLotVM = Provider.of<ParkingLotViewModel>(context, listen: false);
-                    if (locationVM.currentPosition != null) {
-                      parkingLotVM.setParkedLocation(
-                        LatLng(locationVM.currentPosition!.latitude, locationVM.currentPosition!.longitude),
-                      );
-                      // Start the 15-minute timer after parking
-                      _leaveTimer = Timer(const Duration(minutes: 15), () {
-                        setState(() {
-                          // Timer completed, allow the "Leave" dialog to appear
-                        });
-                      });
-                    }
-                  },
-                  child: const Text("Yes"),
+                const Icon(Icons.local_parking, color: Colors.blueAccent),
+                const SizedBox(width: 8),
+                Text(
+                  "You're near ${parkingLot.name}!",
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            if (parkingLot.capacity != null && parkingLot.capacity! > 0)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Rate: ${parkingLot.fullRate}. Do you want to park?",
+                    style: const TextStyle(fontSize: 16, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _showDialog = false;
+                            _declinedParkingLots[parkingLot.name] =
+                                Timer(const Duration(minutes: 15), () {
+                              setState(() {
+                                _declinedParkingLots.remove(parkingLot.name);
+                              });
+                            });
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                        ),
+                        child: const Text("No"),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _showDialog = false;
+                          });
+                          final parkedVM = Provider.of<ParkedViewModel>(context, listen: false);
+                          if (parkingLot.address != null) {
+                            parkedVM.addParked(parkingLot.address!);
+                          }
+                          final parkingLotVM = Provider.of<ParkingLotViewModel>(context, listen: false);
+                          parkingLotVM.setParkedLocation(parkingLot);
+                          _leaveTimer = Timer(const Duration(minutes: 15), () {
+                            setState(() {});
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.greenAccent,
+                        ),
+                        child: const Text("Yes"),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Parking lot is full. Please look for another location.",
+                    style: TextStyle(color: Colors.redAccent, fontSize: 16),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _showDialog = false;
+                          _declinedParkingLots[parkingLot.name] = Timer(
+                            const Duration(minutes: 15),
+                            () {
+                              setState(() {
+                                _declinedParkingLots.remove(parkingLot.name);
+                              });
+                            },
+                          );
+                        });
+                      },
+                      icon: const Icon(Icons.close, color: Colors.grey),
+                      label: const Text("Close"),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  // Build the "Pay/Leave" dialog with the new "Close" button
-  Widget _buildPayOrLeaveDialog(ParkingLotViewModel parkingLotVM) {
-    return Center(
-      child: Container(
+// Pay/Leave banner near parked car
+Widget _buildPayOrLeaveBanner(ParkingLotViewModel parkingLotVM) {
+  return Positioned(
+    top: 16,
+    left: 16,
+    right: 16,
+    child: Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 6,
+      child: Padding(
         padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black26)],
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("You are near your parked car!", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            const Text("Would you like to close the dialog, pay, or leave?"),
-            const SizedBox(height: 16),
+            const Row(
+              children: [
+                Icon(Icons.directions_car, color: Colors.green),
+                SizedBox(width: 8),
+                Text(
+                  "Leaving?",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton(
+                ElevatedButton(
                   onPressed: () {
                     setState(() {
                       _showDialog = false;
                     });
-                    // Restart the 15-minute timer when the dialog is closed
                     _leaveTimer?.cancel();
                     _leaveTimer = Timer(const Duration(minutes: 15), () {
-                      setState(() {
-                        // Timer completed, allow the "Leave" dialog to appear
-                      });
+                      setState(() {});
                     });
-                    print("User closed the dialog and reset the timer.");
                   },
-                  child: const Text("Close"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[300],
+                  ),
+                  child:const  Text("Close"),
                 ),
-                TextButton(
+                const SizedBox(width: 8),
+                ElevatedButton(
                   onPressed: () {
                     setState(() {
                       _showDialog = false;
                     });
-                    print("User wants to pay for the parking.");
                   },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                  ),
                   child: const Text("Pay"),
                 ),
-                TextButton(
+                const SizedBox(width: 8),
+                ElevatedButton(
                   onPressed: () {
                     setState(() {
+                      final parkedVM = Provider.of<ParkedViewModel>(context, listen: false);
+                      parkedVM.leaveParked();
                       parkingLotVM.leaveParking();
                       _showDialog = false;
                     });
-                     // Reset the parked state
-                    print("User left the parking.");
                   },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                  ),
                   child: const Text("Leave"),
                 ),
               ],
@@ -259,6 +358,8 @@ class _MapComponentState extends State<MapComponent> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
 }

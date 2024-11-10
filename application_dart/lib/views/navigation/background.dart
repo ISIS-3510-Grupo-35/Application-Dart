@@ -17,7 +17,7 @@ class _BackgroundScreenState extends State<BackgroundScreen> {
 
   // List of widgets corresponding to each BottomNavigationBar item
   final List<Widget> _widgetOptions = <Widget>[
-    const MapComponent(), // Reference to MapComponent
+    MapComponent(), // Reference to MapComponent
     const ParkingLotList(), // Placeholder for Favorites screen
     const Placeholder(),
     const ProfileComponent(), // Reference to ProfileComponent

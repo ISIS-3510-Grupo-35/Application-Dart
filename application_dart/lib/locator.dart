@@ -1,5 +1,7 @@
 import 'package:application_dart/repositories/firebase_auth.dart';
+import 'package:application_dart/repositories/parked.dart';
 import 'package:application_dart/view_models/firebase_auth.dart';
+import 'package:application_dart/view_models/parked.dart';
 import 'package:get_it/get_it.dart';
 import 'package:application_dart/repositories/parking_lot.dart';
 import 'package:application_dart/repositories/reservation.dart';
@@ -22,6 +24,7 @@ void setupLocator() {
   locator.registerLazySingleton(() => UserAppRepository());
   locator.registerLazySingleton(() => FirebaseAuthRepository());
   locator.registerSingleton<ParkingLotRepository>(ParkingLotRepository());
+  locator.registerSingleton<ParkedRepository>(ParkedRepository());
 
   // ViewModels
   locator.registerFactory(() => ParkingLotViewModel());
@@ -29,4 +32,5 @@ void setupLocator() {
   locator.registerFactory(() => ReviewsViewModel());
   locator.registerFactory(() => FirebaseAuthViewModel());
   locator.registerFactory(() => UserAppViewModel());
+  locator.registerFactory(() => ParkedViewModel());
 }

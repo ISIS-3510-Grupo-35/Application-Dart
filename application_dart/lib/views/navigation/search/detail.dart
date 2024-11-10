@@ -24,9 +24,11 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
     _checkActiveReservation();
   }
 
-  void _checkActiveReservation() {
+  Future<void> _checkActiveReservation() async {
     final reservationVM =
         Provider.of<ReservationViewModel>(context, listen: false);
+
+    await reservationVM.fetchReservations();
     setState(() {
       isReserved = reservationVM.isReserved();
     });
@@ -39,163 +41,292 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
       });
 
       if (!isReserved) {
-        showDialog(
+        final result = await showDialog<Map<String, dynamic>>(
           context: context,
+          barrierDismissible: false,
           builder: (BuildContext dialogContext) {
-            TimeOfDay? dialogSelectedTime;
-            return Theme(
-              // Wrap dialog in Theme
-              data: Theme.of(context).copyWith(
-                // Add dialog theme
-                dialogTheme: DialogTheme(
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14.0),
+            TimeOfDay? selectedTime;
+            final formKey = GlobalKey<FormState>();
+
+            return SingleChildScrollView(
+              child: Dialog(
+                insetPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16.0),
+                ),
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.rectangle,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 10.0,
+                        offset: Offset(0.0, 10.0),
+                      ),
+                    ],
                   ),
-                ),
-                // Add text theme
-                textTheme: const TextTheme(
-                  titleLarge: TextStyle(
-                      color: Colors.black,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold),
-                  bodyMedium: TextStyle(color: Colors.black),
-                ),
-              ),
-              child: StatefulBuilder(
-                builder: (BuildContext context, StateSetter setDialogState) {
-                  return AlertDialog(
-                    title: const Text('Enter Reservation Details'),
-                    content: SingleChildScrollView(
-                      child: Column(
+                  child: StatefulBuilder(
+                    builder:
+                        (BuildContext context, StateSetter setDialogState) {
+                      return Column(
                         mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TextField(
-                            controller: _licensePlateController,
-                            style: const TextStyle(color: Colors.black),
-                            decoration: InputDecoration(
-                              labelText: 'License Plate',
-                              labelStyle:
-                                  const TextStyle(color: Colors.black54),
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.0),
+                          // Header
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom:
+                                    BorderSide(color: Colors.grey, width: 0.5),
                               ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                                borderSide:
-                                    const BorderSide(color: Colors.grey),
+                            ),
+                            child: const Text(
+                              'Reserve Parking Spot',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w600,
                               ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                                borderSide:
-                                    const BorderSide(color: Colors.blue),
-                              ),
-                              prefixIcon: const Icon(Icons.car_repair),
-                              prefixIconColor: Colors.black54,
                             ),
                           ),
-                          const SizedBox(height: 20.0),
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              final TimeOfDay? pickedTime =
-                                  await showTimePicker(
-                                context: context,
-                                initialTime: TimeOfDay.now(),
-                              );
-                              if (pickedTime != null &&
-                                  pickedTime != dialogSelectedTime) {
-                                setDialogState(() {
-                                  dialogSelectedTime = pickedTime;
-                                });
-                              }
-                            },
-                            icon: const Icon(Icons.access_time),
-                            label: Text(
-                              dialogSelectedTime == null
-                                  ? 'Pick Reservation Time'
-                                  : 'Selected Time: ${dialogSelectedTime!.format(context)}',
-                              style: const TextStyle(fontSize: 16),
+                          // Content
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
                             ),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 14.0, horizontal: 20.0),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8.0),
+                            child: Form(
+                              key: formKey,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TextFormField(
+                                    controller: _licensePlateController,
+                                    autofocus: true,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.black87,
+                                    ),
+                                    decoration: InputDecoration(
+                                      labelText: 'License Plate',
+                                      hintText: 'Enter your license plate',
+                                      prefixIcon:
+                                          const Icon(Icons.directions_car),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: const BorderSide(
+                                            color: Colors.grey, width: 1),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: const BorderSide(
+                                            color: Colors.blue, width: 2),
+                                      ),
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter your license plate number';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                      horizontal: 16,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Reservation Time',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        InkWell(
+                                          onTap: () async {
+                                            final TimeOfDay? pickedTime =
+                                                await showTimePicker(
+                                              context: context,
+                                              initialTime: TimeOfDay.now(),
+                                              builder: (context, child) {
+                                                return Theme(
+                                                  data: Theme.of(context)
+                                                      .copyWith(
+                                                    timePickerTheme:
+                                                        TimePickerThemeData(
+                                                      backgroundColor:
+                                                          Colors.white,
+                                                      hourMinuteShape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  child: child!,
+                                                );
+                                              },
+                                            );
+                                            if (pickedTime != null) {
+                                              setDialogState(() {
+                                                selectedTime = pickedTime;
+                                              });
+                                            }
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 8),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.access_time,
+                                                  color: selectedTime == null
+                                                      ? Colors.grey
+                                                      : Colors.blue,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  selectedTime
+                                                          ?.format(context) ??
+                                                      'Select Time',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    color: selectedTime == null
+                                                        ? Colors.grey
+                                                        : Colors.black87,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
+                            ),
+                          ),
+                          // Actions
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                top: BorderSide(color: Colors.grey, width: 0.5),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext),
+                                  child: const Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    if (selectedTime == null) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Please select a reservation time'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    if (formKey.currentState!.validate()) {
+                                      Navigator.pop(dialogContext, {
+                                        'time': selectedTime,
+                                        'licensePlate':
+                                            _licensePlateController.text,
+                                      });
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Confirm',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        child: const Text(
-                          'Cancel',
-                          style:
-                              TextStyle(fontSize: 16, color: Colors.redAccent),
-                        ),
-                      ),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (dialogSelectedTime == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text('Please select a reservation time.'),
-                              ),
-                            );
-                            return;
-                          }
-
-                          final timeToUse = dialogSelectedTime;
-                          Navigator.of(dialogContext).pop();
-
-                          if (timeToUse != null && mounted) {
-                            final DateTime reservationDateTime = DateTime(
-                              DateTime.now().year,
-                              DateTime.now().month,
-                              DateTime.now().day,
-                              timeToUse.hour,
-                              timeToUse.minute,
-                            );
-
-                            await reservationVM.addReservation(
-                              widget.parkingLotId,
-                              reservationDateTime,
-                              _licensePlateController.text,
-                            );
-
-                            if (mounted) {
-                              setState(() {
-                                isReserved = true;
-                              });
-                            }
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 12.0, horizontal: 20.0),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                        ),
-                        child: const Text(
-                          'Confirm',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                      );
+                    },
+                  ),
+                ),
               ),
             );
           },
         );
+
+        if (result != null) {
+          final timeToUse = result['time'] as TimeOfDay;
+          final licensePlate = result['licensePlate'] as String;
+
+          final DateTime reservationDateTime = DateTime(
+            DateTime.now().year,
+            DateTime.now().month,
+            DateTime.now().day,
+            timeToUse.hour,
+            timeToUse.minute,
+          );
+
+          await reservationVM.addReservation(
+            widget.parkingLotId,
+            reservationDateTime,
+            licensePlate,
+          );
+
+          if (mounted) {
+            setState(() {
+              isReserved = true;
+            });
+          }
+        }
       } else {
         await reservationVM.cancelReservation();
         if (mounted) {
@@ -207,7 +338,10 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update reservation: $e')),
+          SnackBar(
+            content: Text('Failed to update reservation: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -362,35 +496,47 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
                         const SizedBox(height: 24.0),
                         Center(
                           child: Text(
-                          isReserved
-                            ? 'You have an active reservation'
-                            : (parkingLot.capacity != null && parkingLot.capacity! > 0
-                              ? 'Available for reservation'
-                              : 'Parking lot is full'),
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: isReserved
-                              ? Colors.red
-                              : (parkingLot.capacity != null && parkingLot.capacity! > 0
-                                ? Colors.green
-                                : Colors.red),
-                          ),
+                            isReserved
+                                ? 'You have an active reservation'
+                                : (parkingLot.capacity != null &&
+                                        parkingLot.capacity! > 0
+                                    ? 'Available for reservation'
+                                    : 'Parking lot is full'),
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: isReserved
+                                  ? Colors.red
+                                  : (parkingLot.capacity != null &&
+                                          parkingLot.capacity! > 0
+                                      ? Colors.green
+                                      : Colors.red),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16.0),
                         Center(
                           child: ElevatedButton(
-                            onPressed: reservationVM.fetchingData || (parkingLot.capacity != null && parkingLot.capacity! <= 0)
-                              ? null
-                              : () => _handleReservation(reservationVM),
-                            child: Text(
-                                isReserved ? 'Cancel Reservation' : (parkingLot.capacity != null && parkingLot.capacity! > 0 ? 'Reserve' : 'Full')),
+                            onPressed: reservationVM.fetchingData ||
+                                    (parkingLot.capacity != null &&
+                                        parkingLot.capacity! <= 0)
+                                ? null
+                                : () => _handleReservation(reservationVM),
+                            child: Text(isReserved
+                                ? 'Cancel Reservation'
+                                : (parkingLot.capacity != null &&
+                                        parkingLot.capacity! > 0
+                                    ? 'Reserve'
+                                    : 'Full')),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 24, vertical: 12),
-                              backgroundColor:
-                                    isReserved ? Colors.red : (parkingLot.capacity != null && parkingLot.capacity! > 0 ? Colors.blue : Colors.grey),
+                              backgroundColor: isReserved
+                                  ? Colors.red
+                                  : (parkingLot.capacity != null &&
+                                          parkingLot.capacity! > 0
+                                      ? Colors.blue
+                                      : Colors.grey),
                             ),
                           ),
                         ),
