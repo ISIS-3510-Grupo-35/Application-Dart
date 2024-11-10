@@ -31,6 +31,11 @@ class UserAppViewModel extends ChangeNotifier {
     return _UserApp;
   }
 
+  Future<Map<bool, String>> changePassword(String password, String newPassword) async {
+    final response = await _repository.changePassword(password, newPassword);
+    return response;
+  }
+
   set userApp(UserApp? userApp) {
     _UserApp = userApp;
     notifyListeners();

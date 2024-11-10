@@ -1,7 +1,6 @@
 // ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api
 
 import 'package:application_dart/services/firebase_auth_services.dart';
-import 'package:application_dart/models/global_vars.dart';
 import 'package:application_dart/views/Login/sign_up.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -30,7 +29,6 @@ class _LoginFormComponentState extends State<LoginFormComponent> {
 
   @override
   void dispose() {
-    // Dispose of controllers when not needed
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -48,26 +46,15 @@ class _LoginFormComponentState extends State<LoginFormComponent> {
         child: Column(
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    formType == "login" ? 'Login' : 'Sign Up',
-                    style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                formType == "login" ? 'Login' : 'Sign Up',
+                style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
                 ),
-                Container(
-                  margin: const EdgeInsets.all(4.0),
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFFF4B324),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: widget.onClose,
-                  ),
-                ),
+              ),
               ],
             ),
             const SizedBox(height: 16.0), // Add some space between the row and the rest of the form
@@ -133,7 +120,7 @@ class _LoginFormComponentState extends State<LoginFormComponent> {
                           ),
                     const SizedBox(height: 16.0),
                     // Create Account Button
-                    TextButton(
+                    if (!_isLoading) TextButton(
                       onPressed: () {
                         setState(() {
                           formType = "signup"; // Switch to signup form
@@ -176,7 +163,6 @@ class _LoginFormComponentState extends State<LoginFormComponent> {
 
     User? user = await _auth.signInWithEmailAndPassword(email, password);
     var uuid = user?.uid;
-    GlobalVars().uid = uuid;
     if (user != null) {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_uid', uuid ?? '');
