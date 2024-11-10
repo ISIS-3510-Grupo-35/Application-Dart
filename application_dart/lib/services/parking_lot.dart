@@ -1,10 +1,8 @@
-// ignore_for_file: unnecessary_cast
-
 import 'package:application_dart/models/parking_lot.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ParkingLotService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Fetch all parking lot documents from the 'parking lots' collection
   Future<List<ParkingLot>> fetchParkingLots() async {
@@ -14,6 +12,7 @@ class ParkingLotService {
         return ParkingLot.fromJson(doc.data() as Map<String, dynamic>);
       }).toList();
     } catch (e) {
+      print("Error fetching parking lots: $e");
       return [];
     }
   }
@@ -31,6 +30,7 @@ class ParkingLotService {
         }
           });
     } catch (e) {
+      print("Error updating parking lot capacity: $e");
       throw Exception("Failed to update parking lot capacity");
     }
   }

@@ -4,14 +4,10 @@ import 'package:application_dart/services/reservation.dart';
 class ReservationRepository {
   final ReservationService _service = ReservationService();
 
-  Future<Reservation> getReservationsByUserId() async {
+  Future<Reservation?> getReservationsByUserId() async {
     final reservation = await _service.fetchReservationByUserID();
-
-    if (reservation != null) {
       return reservation;
-    } else {
-      throw Exception('Failed to load superheroes');
-    }
+
   }
 
   Future<bool> addReservation(Reservation reservation) async {
