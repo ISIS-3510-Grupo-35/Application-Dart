@@ -184,9 +184,15 @@ Widget _buildParkingBanner(ParkingLot parkingLot) {
               children: [
                 const Icon(Icons.local_parking, color: Colors.blueAccent),
                 const SizedBox(width: 8),
-                Text(
-                  "You're near ${parkingLot.name}!",
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Flexible(
+                  child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Text(
+                    "You're near ${parkingLot.name}!",
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  ),
                 ),
               ],
             ),
