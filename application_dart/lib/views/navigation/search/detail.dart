@@ -1,3 +1,4 @@
+import 'package:application_dart/services/connectivity.dart'; // Make sure to import your connectivity service
 import 'package:application_dart/view_models/parking_lot.dart';
 import 'package:application_dart/view_models/reservation.dart';
 import 'package:flutter/material.dart';
@@ -27,14 +28,25 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
   Future<void> _checkActiveReservation() async {
     final reservationVM =
         Provider.of<ReservationViewModel>(context, listen: false);
-
     await reservationVM.fetchReservations();
     setState(() {
       isReserved = reservationVM.isReserved();
     });
   }
 
-  Future<void> _handleReservation(ReservationViewModel reservationVM) async {
+  Future<void> _handleReservation(
+      ReservationViewModel reservationVM, bool isConnected) async {
+    if (!isConnected) {
+      // Show a message if not connected and user tries to reserve/cancel
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No internet connection. Please try again later.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     try {
       setState(() {
         reservationVM.fetchingData = true;
@@ -357,6 +369,8 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
   Widget build(BuildContext context) {
     final parkingLotVM = Provider.of<ParkingLotViewModel>(context);
     final reservationVM = Provider.of<ReservationViewModel>(context);
+    final connectivityService =
+        Provider.of<ConnectivityService>(context, listen: false);
     final parkingLot = parkingLotVM.getParkingLotById(widget.parkingLotId);
 
     if (parkingLot == null) {
@@ -366,216 +380,258 @@ class _ParkingLotDetailScreenState extends State<ParkingLotDetailScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(parkingLot.name),
-        backgroundColor: const Color(0xFFF4B324),
-      ),
-      body: reservationVM.fetchingData
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Stack(
+    return StreamBuilder<bool>(
+      stream: connectivityService.statusStream,
+      initialData: connectivityService.isConnected,
+      builder: (context, snapshot) {
+        final isConnected = snapshot.data ?? true;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(parkingLot.name),
+            backgroundColor: const Color(0xFFF4B324),
+          ),
+          body: reservationVM.fetchingData
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      CachedNetworkImage(
-                        imageUrl: parkingLot.image ?? '',
-                        placeholder: (context, url) =>
-                            const Center(child: CircularProgressIndicator()),
-                        errorWidget: (context, url, error) =>
-                            const Center(child: Icon(Icons.error)),
-                        width: double.infinity,
-                        height: 250,
-                        fit: BoxFit.cover,
-                      ),
-                      Container(
-                        height: 250,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.black.withOpacity(0.5),
-                              Colors.transparent
-                            ],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
+                      Stack(
+                        children: [
+                          CachedNetworkImage(
+                            imageUrl: parkingLot.image ?? '',
+                            placeholder: (context, url) => const Center(
+                                child: CircularProgressIndicator()),
+                            errorWidget: (context, url, error) =>
+                                const Center(child: Icon(Icons.error)),
+                            width: double.infinity,
+                            height: 250,
+                            fit: BoxFit.cover,
                           ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 16,
-                        left: 16,
-                        right: 16,
-                        child: Container(
-                          color: Colors.transparent,
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            parkingLot.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                          Container(
+                            height: 250,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.black.withOpacity(0.5),
+                                  Colors.transparent
+                                ],
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
                           ),
+                          Positioned(
+                            bottom: 16,
+                            left: 16,
+                            right: 16,
+                            child: Container(
+                              color: Colors.transparent,
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                parkingLot.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Address & Capacity
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text( (parkingLot.address ??
+                                            'No Address Provided'),
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10.0),
+                            Center(child: Chip(
+                                  label: Text(
+                                    isConnected ? (parkingLot.capacity != null
+                                        ? 'Capacity: ${parkingLot.capacity!.toInt()}'
+                                        : 'Capacity: N/A') : 'Capacity: No live data',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                  backgroundColor:
+                                      isConnected ?  (parkingLot.capacity != null &&
+                                              parkingLot.capacity! > 0
+                                          ? Colors.green
+                                          : Colors.red) : Colors.grey,
+                                ),),
+                            const SizedBox(height: 16.0),
+                            // Times
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    parkingLot.openingTime != null
+                                        ? 'Opening Time: ${parkingLot.openingTime!.format(context)} AM'
+                                        : 'No Opening Time Provided',
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    parkingLot.closingTime != null
+                                        ? 'Closing Time: ${parkingLot.closingTime!.format(context)} PM'
+                                        : 'No Closing Time Provided',
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16.0),
+                            if (parkingLot.fullRate != null)
+                              Text(
+                                'Full Rate: ${parkingLot.fullRate!.toStringAsFixed(2)} COP',
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w500),
+                              ),
+                            if (parkingLot.durationFullRate != null)
+                              Text(
+                                'Duration Full Rate: ${parkingLot.durationFullRate!.toInt()} Hours',
+                                style: const TextStyle(
+                                    fontSize: 14, color: Colors.black54),
+                              ),
+                            if (parkingLot.priceMinute != null)
+                              Text(
+                                'Price per Minute: ${parkingLot.priceMinute!.toStringAsFixed(2)} COP',
+                                style: const TextStyle(
+                                    fontSize: 14, color: Colors.black54),
+                              ),
+                            const SizedBox(height: 24.0),
+                            if (isConnected)
+                              Center(
+                                child: Text(
+                                  isReserved
+                                      ? 'You have an active reservation'
+                                      : (parkingLot.capacity != null &&
+                                              parkingLot.capacity! > 0
+                                          ? 'Available for reservation'
+                                          : 'Parking lot is full'),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: isReserved
+                                        ? Colors.red
+                                        : (parkingLot.capacity != null &&
+                                                parkingLot.capacity! > 0
+                                            ? Colors.green
+                                            : Colors.red),
+                                  ),
+                                ),
+                              ),
+                              if (isConnected)
+                            const SizedBox(height: 16.0),
+                            // Reserve Button (disable if no connectivity)
+                            if (isConnected)
+                              Center(
+                                child: ElevatedButton(
+                                  onPressed: reservationVM.fetchingData ||
+                                          !isConnected ||
+                                          (parkingLot.capacity != null &&
+                                              parkingLot.capacity! <= 0)
+                                      ? null
+                                      : () => _handleReservation(
+                                          reservationVM, isConnected),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24, vertical: 12),
+                                    backgroundColor: isReserved
+                                        ? Colors.red
+                                        : (parkingLot.capacity != null &&
+                                                parkingLot.capacity! > 0
+                                            ? Colors.blue
+                                            : Colors.grey),
+                                  ),
+                                  child: Text(isReserved
+                                      ? 'Cancel Reservation'
+                                      : (parkingLot.capacity != null &&
+                                              parkingLot.capacity! > 0
+                                          ? 'Reserve'
+                                          : 'Full')),
+                                ),
+                              ),
+                            if (isConnected)
+                            const SizedBox(height: 24.0),
+                            // Review Button (can also be disabled if no connectivity)
+                            if (isConnected)
+                              Center(
+                                child: ElevatedButton.icon(
+                                  onPressed: !isConnected
+                                      ? null
+                                      : () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) {
+                                              return AlertDialog(
+                                                title: const Text(
+                                                    'Leave a Review'),
+                                                content: const Text(
+                                                    'Feature coming soon!'),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.of(context)
+                                                            .pop(),
+                                                    child: const Text('OK'),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                        },
+                                  icon: const Icon(Icons.rate_review),
+                                  label: const Text('Review Parking Lot'),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24, vertical: 12),
+                                    backgroundColor: Colors.orangeAccent,
+                                  ),
+                                ),
+                              ),
+                            if (!isConnected)
+                              const Padding(
+                                  padding: EdgeInsets.only(top: 16.0),
+                                  child: Center(
+                                    child: Center(
+                                      child: Text(
+                                        'No internet connection. Review and reservation features are disabled.',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                    ),
+                                  )),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                parkingLot.address ?? 'No Address Provided',
-                                style: const TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                            Chip(
-                              label: Text(
-                                parkingLot.capacity != null
-                                    ? 'Capacity: ${parkingLot.capacity!.toInt()}'
-                                    : 'Capacity: N/A',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              backgroundColor: parkingLot.capacity != null &&
-                                      parkingLot.capacity! > 0
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16.0),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                parkingLot.openingTime != null
-                                    ? 'Opening Time: ${parkingLot.openingTime!.format(context)} AM'
-                                    : 'No Opening Time Provided',
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                parkingLot.closingTime != null
-                                    ? 'Closing Time: ${parkingLot.closingTime!.format(context)} PM'
-                                    : 'No Closing Time Provided',
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16.0),
-                        if (parkingLot.fullRate != null)
-                          Text(
-                            'Full Rate: ${parkingLot.fullRate!.toStringAsFixed(2)} COP',
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w500),
-                          ),
-                        if (parkingLot.durationFullRate != null)
-                          Text(
-                            'Duration Full Rate: ${parkingLot.durationFullRate!.toInt()} Hours',
-                            style: const TextStyle(
-                                fontSize: 14, color: Colors.black54),
-                          ),
-                        if (parkingLot.priceMinute != null)
-                          Text(
-                            'Price per Minute: ${parkingLot.priceMinute!.toStringAsFixed(2)} COP',
-                            style: const TextStyle(
-                                fontSize: 14, color: Colors.black54),
-                          ),
-                        const SizedBox(height: 24.0),
-                        Center(
-                          child: Text(
-                            isReserved
-                                ? 'You have an active reservation'
-                                : (parkingLot.capacity != null &&
-                                        parkingLot.capacity! > 0
-                                    ? 'Available for reservation'
-                                    : 'Parking lot is full'),
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: isReserved
-                                  ? Colors.red
-                                  : (parkingLot.capacity != null &&
-                                          parkingLot.capacity! > 0
-                                      ? Colors.green
-                                      : Colors.red),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16.0),
-                        Center(
-                          child: ElevatedButton(
-                            onPressed: reservationVM.fetchingData ||
-                                    (parkingLot.capacity != null &&
-                                        parkingLot.capacity! <= 0)
-                                ? null
-                                : () => _handleReservation(reservationVM),
-                            child: Text(isReserved
-                                ? 'Cancel Reservation'
-                                : (parkingLot.capacity != null &&
-                                        parkingLot.capacity! > 0
-                                    ? 'Reserve'
-                                    : 'Full')),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 12),
-                              backgroundColor: isReserved
-                                  ? Colors.red
-                                  : (parkingLot.capacity != null &&
-                                          parkingLot.capacity! > 0
-                                      ? Colors.blue
-                                      : Colors.grey),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24.0),
-                        Center(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) {
-                                  return AlertDialog(
-                                    title: const Text('Leave a Review'),
-                                    content: const Text('Feature coming soon!'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(),
-                                        child: const Text('OK'),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
-                            icon: const Icon(Icons.rate_review),
-                            label: const Text('Review Parking Lot'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 12),
-                              backgroundColor: Colors.orangeAccent,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
+        );
+      },
     );
   }
 }
