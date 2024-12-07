@@ -22,6 +22,37 @@ class UserAppService {
     await _firestore.collection('users').doc(uuid).set(user.toJson());
   }
 
+  Future<Map<bool, String>> addBalance(int number) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? userId = prefs.getString('user_uid');
+      if (userId == null) {
+        return {false: 'User not found'};
+      }
+
+      var response = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      if (!response.exists) {
+        return {false: 'User not found in database'};
+      }
+
+      UserApp userModel =
+          UserApp.fromJson(response.data() as Map<String, dynamic>);
+
+      userModel.balance += number;
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update({'balance': userModel.balance});
+
+      return {true: 'Balance added successfully'};
+    } catch (e) {
+      return {false: 'Error occurred: ${e.toString()}'};
+    }
+  }
+
   Future<Map<bool, String>> changePassword(
       String currentPassword, String newPassword) async {
     try {

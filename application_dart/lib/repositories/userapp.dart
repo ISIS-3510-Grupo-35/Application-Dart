@@ -3,10 +3,16 @@ import 'package:application_dart/services/userapp.dart';
 
 class UserAppRepository {
   final UserAppService _service = UserAppService();
+  
 
   Future<Map<bool, String>> changePassword(String password, String newPassword) async {
     final response = await _service.changePassword(password, newPassword);
       return response;
+  }
+
+  Future<Map<bool, String>> addBalance(int number) async {
+    final response = await _service.addBalance(number);
+    return response;
   }
 
   Future<UserApp> getUserApp(String uuid) async {
