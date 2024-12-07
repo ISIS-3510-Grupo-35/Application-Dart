@@ -16,7 +16,8 @@ class ReservationService {
           .limit(1)
           .get();
       if (snapshot.docs.isNotEmpty) {
-        return Reservation.fromJson(snapshot.docs.first.data() as Map<String, dynamic>);
+        return Reservation.fromJson(
+            snapshot.docs.first.data() as Map<String, dynamic>);
       }
       return null;
     } catch (e) {
@@ -34,22 +35,36 @@ class ReservationService {
     }
   }
 
-Future<bool> cancelReservationByUserID() async {
-  try {
+  Future<bool> cancelReservationByUserID() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? userUid = prefs.getString('user_uid');
+      QuerySnapshot snapshot = await _firestore
+          .collection('Reservations')
+          .where('userID', isEqualTo: userUid)
+          .where('status', isEqualTo: 'created')
+          .limit(1)
+          .get();
+      for (var doc in snapshot.docs) {
+        await doc.reference.update({'status': 'cancelled'});
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Stream<List<Reservation>> listenToReservations() async* {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userUid = prefs.getString('user_uid');
-    QuerySnapshot snapshot = await _firestore
+    yield* _firestore
         .collection('Reservations')
         .where('userID', isEqualTo: userUid)
-        .where('status', isEqualTo: 'created')
-        .limit(1)
-        .get();
-    for (var doc in snapshot.docs) {
-      await doc.reference.update({'status': 'cancelled'});
-    }
-    return true;
-  } catch (e) {
-    return false;
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return Reservation.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    });
   }
-}
 }

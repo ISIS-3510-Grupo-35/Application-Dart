@@ -4,10 +4,14 @@ import 'package:application_dart/services/reservation.dart';
 class ReservationRepository {
   final ReservationService _service = ReservationService();
 
+  Stream<List<Reservation>> getReservations() {
+    return  _service.listenToReservations();
+
+  }
+
   Future<Reservation?> getReservationsByUserId() async {
     final reservation = await _service.fetchReservationByUserID();
       return reservation;
-
   }
 
   Future<bool> addReservation(Reservation reservation) async {
@@ -29,3 +33,4 @@ class ReservationRepository {
     }
   }
 }
+

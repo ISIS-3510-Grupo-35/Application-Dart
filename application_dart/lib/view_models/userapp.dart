@@ -36,6 +36,11 @@ class UserAppViewModel extends ChangeNotifier {
     return response;
   }
 
+  Future<Map<bool, String>> addBalance(int number) async {
+    final response = await _repository.addBalance(number);
+    return response;
+  }
+
   set userApp(UserApp? userApp) {
     _UserApp = userApp;
     notifyListeners();

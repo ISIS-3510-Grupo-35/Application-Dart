@@ -2,6 +2,7 @@
 
 import 'package:application_dart/views/navigation/map.dart'; // Import your MapComponent
 import 'package:application_dart/views/navigation/profile.dart';
+import 'package:application_dart/views/navigation/reservation.dart';
 import 'package:application_dart/views/navigation/search/search.dart';
 import 'package:flutter/material.dart';
 
@@ -19,7 +20,7 @@ class _BackgroundScreenState extends State<BackgroundScreen> {
   final List<Widget> _widgetOptions = <Widget>[
     MapComponent(), // Reference to MapComponent
     const ParkingLotList(), // Placeholder for Favorites screen
-    const Placeholder(),
+    const ReservationsScreen(),
     const ProfileComponent(), // Reference to ProfileComponent
   ];
 
@@ -85,11 +86,11 @@ class _BackgroundScreenState extends State<BackgroundScreen> {
                     alignment: Alignment.center,
                     children: [
                       Icon(Icons.circle, size: 40, color: const Color(0xFFF6E7D8).withOpacity(0.8)),
-                      const Icon(Icons.favorite_outline),
+                      const Icon(Icons.local_parking),
                     ],
                   )
-                : const Icon(Icons.favorite_outline),
-            label: 'Favorites',
+                : const Icon(Icons.local_parking),
+            label: 'Reservation',
           ),
           BottomNavigationBarItem(
             icon: _selectedIndex == 3
