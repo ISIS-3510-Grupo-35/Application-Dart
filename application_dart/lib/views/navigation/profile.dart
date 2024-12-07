@@ -1,10 +1,12 @@
 // profile_component.dart
+import 'package:application_dart/services/connectivity.dart'; 
 import 'package:application_dart/view_models/userapp.dart';
+import 'package:application_dart/models/userapp.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
-import 'package:application_dart/models/userapp.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Import SharedPreferences
+import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:shared_preferences/shared_preferences.dart'; 
+import 'package:provider/provider.dart'; // If needed for ConnectivityService
 
 class ProfileComponent extends StatefulWidget {
   const ProfileComponent({Key? key}) : super(key: key);
@@ -15,13 +17,10 @@ class ProfileComponent extends StatefulWidget {
 
 class _ProfileComponentState extends State<ProfileComponent> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late String _uid = ''; // Local variable to store the uid
+  late String _uid = '';
   final _userAppViewModel = UserAppViewModel();
 
-  // Function to reset GlobalVars and UserApp instances
-  void _resetAppState() {
-    _userAppViewModel.clearUserApp();
-  }
+  UserApp? _cachedUserApp; // To store fetched user data
 
   void initState() {
     super.initState();
@@ -31,138 +30,179 @@ class _ProfileComponentState extends State<ProfileComponent> {
   Future<void> _loadUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _uid = prefs.getString('user_uid') ??
-          ''; // Retrieve user_uid or use an empty string if not found
+      _uid = prefs.getString('user_uid') ?? '';
     });
   }
 
-  // Logout function to handle user sign out and reset state
+  void _resetAppState() {
+    _userAppViewModel.clearUserApp();
+  }
+
   Future<void> _logout() async {
     try {
       await FirebaseAuth.instance.signOut();
-
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.remove('user_uid');
-      Navigator.pushReplacementNamed(context, '/'); // Sign out from Firebase
-
-      // Reset the application state
+      Navigator.pushReplacementNamed(context, '/');
       _resetAppState();
-
-      // Navigate back to login or main screen after logout
-      Navigator.of(context)
-          .pushReplacementNamed('/'); // Replace with your login screen route
+      Navigator.of(context).pushReplacementNamed('/');
     } catch (e) {
-      print('Failed to log out: $e'); // Handle logout failure
+      print('Failed to log out: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final connectivityService = Provider.of<ConnectivityService>(context, listen: false);
+
     if (_uid.isEmpty) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    return Scaffold(
-      body: FutureBuilder<DocumentSnapshot>(
-        future: _firestore.collection('users').doc(_uid).get(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('User not found.'));
-          }
+    return StreamBuilder<bool>(
+      stream: connectivityService.statusStream,
+      initialData: connectivityService.isConnected,
+      builder: (context, connectivitySnapshot) {
+        final isConnected = connectivitySnapshot.data ?? true;
 
-          // Parse the Firestore document into the UserApp model
-          var userApp =
-              UserApp.fromJson(snapshot.data!.data() as Map<String, dynamic>);
+        return FutureBuilder<DocumentSnapshot>(
+          future: _firestore.collection('users').doc(_uid).get(),
+          builder: (context, snapshot) {
+            // Handle no connectivity before data is fetched
+            if (!isConnected && snapshot.connectionState == ConnectionState.waiting) {
+              return Scaffold(
+                body: const Center(
+                  child: Text(
+                    'No internet connection. Unable to load user data.',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              );
+            }
 
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 20),
-                  // User Info Card
-                  Card(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15.0)),
-                    elevation: 5,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildUserInfo('Name',
-                              '${userApp.firstName} ${userApp.lastName}'),
-                          _buildUserInfo('Email', userApp.email),
-                          _buildUserInfo(
-                              'Driver Status', userApp.driver ? 'Yes' : 'No'),
-                          _buildUserInfo('Account Balance',
-                              '\$${userApp.balance.toString()}'),
-                        ],
+            // If fetched data previously or just fetched now, cache it
+            if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
+              _cachedUserApp = UserApp.fromJson(snapshot.data!.data() as Map<String, dynamic>);
+            }
+
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              // Connected but still loading data
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            } else if (snapshot.hasError) {
+              return Scaffold(
+                body: Center(child: Text('Error: ${snapshot.error}')),
+              );
+            } else if (_cachedUserApp == null) {
+              // No data and not waiting => user not found
+              return Scaffold(
+                body: const Center(child: Text('User not found.')),
+              );
+            }
+
+            // Now we have user data cached in _cachedUserApp
+            var userApp = _cachedUserApp!;
+
+            return Scaffold(
+              body: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 20),
+                      Card(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15.0)),
+                        elevation: 5,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildUserInfo('Name',
+                                  '${userApp.firstName} ${userApp.lastName}'),
+                              _buildUserInfo('Email', userApp.email),
+                              _buildUserInfo('Driver Status',
+                                  userApp.driver ? 'Yes' : 'No'),
+                              _buildUserInfo('Account Balance',
+                                  '\$${userApp.balance.toString()}'),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  // Change Password Button
-                  OutlinedButton.icon(
-                    onPressed: _showChangePasswordSheet,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 10),
+                      // If we are not connected (now), but we have data already:
+                      // Remove "Change Password" and "Add to Balance" buttons, 
+                      // leave only "Log Out"
+                      if (isConnected) ...[
+                        OutlinedButton.icon(
+                          onPressed: _showChangePasswordSheet,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red, width: 1.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.lock, color: Colors.red),
+                          label: const Text('Change Password'),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: _showAddBalanceSheet,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.green,
+                            side: const BorderSide(color: Colors.green, width: 1.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.account_balance_wallet,
+                              color: Colors.green),
+                          label: const Text('Add to Balance'),
+                        ),
+                        const SizedBox(height: 10),
+                      ] else ...[
+                        // Not connected but data loaded: Show a warning or
+                        // a message about limited functionality if desired
+                        const Text(
+                          'Offline mode: Some features are unavailable.',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+
+                      OutlinedButton.icon(
+                        onPressed: _logout,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black,
+                          side: const BorderSide(
+                              color: Colors.black, width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.logout, color: Colors.black),
+                        label: const Text('Log Out'),
                       ),
-                    ),
-                    icon: const Icon(Icons.lock, color: Colors.red),
-                    label: const Text('Change Password'),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  // Add to Balance Button
-                  OutlinedButton.icon(
-                    onPressed: _showAddBalanceSheet,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.green,
-                      side: const BorderSide(color: Colors.green, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.account_balance_wallet,
-                        color: Colors.green),
-                    label: const Text('Add to Balance'),
-                  ),
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    onPressed: _logout, // Call logout function on press
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black,
-                      side: const BorderSide(
-                          color: Colors.black,
-                          width: 1.5), // Stronger border color and width
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.logout,
-                        color: Colors.black), // Icon color updated to black
-                    label: const Text('Log Out'),
-                  ),
-                ],
+                ),
               ),
-            ),
-          );
-        },
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
-  // Helper widget to build individual user info sections with improved styling
   Widget _buildUserInfo(String title, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -173,8 +213,7 @@ class _ProfileComponentState extends State<ProfileComponent> {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color:
-                  Color(0xFFF4B324), // Updated label color to specified yellow
+              color: Color(0xFFF4B324),
             ),
           ),
           const SizedBox(width: 10),
@@ -190,7 +229,7 @@ class _ProfileComponentState extends State<ProfileComponent> {
     );
   }
 
-  void _showChangePasswordSheet() {
+   void _showChangePasswordSheet() {
     final TextEditingController currentPasswordController =
         TextEditingController();
     final TextEditingController newPasswordController = TextEditingController();

@@ -10,7 +10,7 @@ String UserAppToJson(UserApp data) => json.encode(data.toJson());
 
 class UserApp {
     String id;
-    double balance;
+    int balance;
     bool driver;
     String email;
     String firstName;
