@@ -54,6 +54,32 @@ class ReservationService {
     }
   }
 
+  Future<bool> updateReservation(Reservation reservation, Reservation reservationChanged) async{
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? userUid = prefs.getString('user_uid');
+      QuerySnapshot snapshot = await _firestore
+          .collection('Reservations')
+          .where('userID', isEqualTo: userUid)
+          .where('status', isEqualTo: 'created')
+          .where('arrivalTime', isEqualTo: reservation.arrivalTime)
+          .where('departureTime', isEqualTo: reservation.departureTime)
+          .where('licensePlate', isEqualTo: reservation.licensePlate)
+          .where('parkingID', isEqualTo: reservation.parkingId)
+          .limit(1)
+          .get();
+      for (var doc in snapshot.docs) {
+        await doc.reference.update({
+          'arrivalTime': reservationChanged.arrivalTime,
+          'licensePlate': reservationChanged.licensePlate
+        });
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Stream<List<Reservation>> listenToReservations() async* {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userUid = prefs.getString('user_uid');

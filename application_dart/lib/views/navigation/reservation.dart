@@ -1,10 +1,13 @@
+// ignore_for_file: library_private_types_in_public_api
+
 import 'package:application_dart/models/reservation.dart';
 import 'package:application_dart/view_models/reservation.dart';
+import 'package:application_dart/views/navigation/reservation_detail.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class ReservationsScreen extends StatefulWidget {
-  const ReservationsScreen({Key? key}) : super(key: key);
+  const ReservationsScreen({super.key});
 
   @override
   _ReservationsScreenState createState() => _ReservationsScreenState();
@@ -37,8 +40,8 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Show the active reservation section if there is a reservation
-            if (isReserved) ...[
+            // ignore: unnecessary_null_comparison
+            if (isReserved && reservationVM.reservation != null) ...[
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Text(
@@ -57,20 +60,27 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                   color: Colors.blue[100], // Highlight the active reservation
                   child: ListTile(
                     title: Text(
-                      'Parking: ${reservationVM.reservation?.parkingId ?? 'Unknown'}',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      'Parking: ${reservationVM.reservation.parkingId}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Text(
-                      'Status: ${reservationVM.reservation?.status ?? 'Unknown'}\n'
-                      'License Plate: ${reservationVM.reservation?.licensePlate ?? 'Unknown'}\n'
-                      'Arrival Time: ${reservationVM.reservation?.arrivalTime ?? 'Unknown'}',
+                      'Status: ${reservationVM.reservation.status}\n'
+                      'License Plate: ${reservationVM.reservation.licensePlate}\n'
+                      'Arrival Time: ${reservationVM.reservation.arrivalTime}',
                     ),
+                    onTap: () {
+                      // Navigate directly to the detail screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ReservationDetailScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
             ],
-
-            // Reservation list section for previous reservations
             if (reservationVM.reservations != null && reservationVM.reservations!.isNotEmpty)
               _buildReservationList(reservationVM.reservations!),
           ],

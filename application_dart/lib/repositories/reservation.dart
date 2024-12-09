@@ -32,5 +32,15 @@ class ReservationRepository {
       return false;
     }
   }
+
+  Future<bool> updateReservation(Reservation reservation, Reservation reservationChanged) async {
+    bool response = await _service.updateReservation(reservation, reservationChanged);
+    if(response){
+      return response;
+    }
+    else{
+      return false;
+    }
+  }
 }
 

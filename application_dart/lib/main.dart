@@ -1,6 +1,7 @@
 import 'package:application_dart/services/connectivity.dart';
 import 'package:application_dart/view_models/parked.dart';
 import 'package:application_dart/view_models/reservation.dart';
+import 'package:application_dart/view_models/review.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -37,6 +38,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ParkingLotViewModel()),
         ChangeNotifierProvider(create: (_) => ReservationViewModel()),
         ChangeNotifierProvider(create: (_) => ParkedViewModel()),
+        ChangeNotifierProvider(create: (_) => ReviewViewModel()), // Add this line
          Provider<ConnectivityService>(create: (_) => ConnectivityService(), dispose: (_, service) => service.dispose(),),
       ],
       child: MyApp(initialRoute: initialRoute) // Use MyApp as the root widget
