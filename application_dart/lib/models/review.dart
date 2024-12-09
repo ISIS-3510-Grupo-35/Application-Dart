@@ -1,41 +1,31 @@
-// To parse this JSON data, do
-//
-//     final review = reviewFromJson(jsonString);
-
-import 'dart:convert';
-
-Review reviewFromJson(String str) => Review.fromJson(json.decode(str));
-
-String reviewToJson(Review data) => json.encode(data.toJson());
-
 class Review {
-    int id;
-    int parkingId;
-    double rate;
-    String review;
-    int userId;
+  final String parkingId;
+  final String rate; // keeping it as String as per your specification
+  final String review;
+  final String userId;
 
-    Review({
-        required this.id,
-        required this.parkingId,
-        required this.rate,
-        required this.review,
-        required this.userId,
-    });
+  Review({
+    required this.parkingId,
+    required this.rate,
+    required this.review,
+    required this.userId,
+  });
 
-    factory Review.fromJson(Map<String, dynamic> json) => Review(
-        id: json["id"],
-        parkingId: json["parkingID"],
-        rate: json["rate"]?.toDouble(),
-        review: json["review"],
-        userId: json["userID"],
-    );
-
-    Map<String, dynamic> toJson() => {
-        "id": id,
-        "parkingID": parkingId,
-        "rate": rate,
-        "review": review,
-        "userID": userId,
+  Map<String, dynamic> toMap() {
+    return {
+      'parkingId': parkingId,
+      'rate': rate,
+      'review': review,
+      'userId': userId,
     };
+  }
+
+  factory Review.fromMap(Map<String, dynamic> map) {
+    return Review(
+      parkingId: map['parkingId'] as String,
+      rate: map['rate'] as String,
+      review: map['review'] as String,
+      userId: map['userId'] as String,
+    );
+  }
 }

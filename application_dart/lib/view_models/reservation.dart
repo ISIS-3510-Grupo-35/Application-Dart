@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:application_dart/models/reservation.dart';
 import 'package:application_dart/repositories/reservation.dart';
 import 'package:flutter/material.dart';
@@ -14,17 +13,12 @@ class ReservationViewModel extends ChangeNotifier {
   bool fetchingData = false;
 
   List<Reservation>? get reservations => _reservations;
-
   Reservation get reservation => _reservation!;
 
   StreamSubscription<List<Reservation>>? _reservationsSubscription;
 
-  // Call this once (e.g., in the constructor or from an init method) 
-  // to start listening to the stream of all reservations.
   void startListeningToAllReservations() {
-    // If we already have a subscription, cancel it before starting a new one
     _reservationsSubscription?.cancel();
-    
     _reservationsSubscription = _repository.getReservations().listen((reservations) {
       _reservations = reservations;
       notifyListeners();
@@ -91,9 +85,26 @@ class ReservationViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateReservation(Reservation reservationChanged) async {
+    if (_reservation == null) {
+      throw Exception('No existing reservation to update');
+    }
+    try {
+      bool success = await _repository.updateReservation(_reservation!, reservationChanged);
+      if (success) {
+        _reservation = reservationChanged;
+        notifyListeners();
+        return true;
+      } else {
+        throw Exception('Failed to update reservation');
+      }
+    } catch (e) {
+      throw Exception('Failed to update reservation: $e');
+    }
+  }
+
   @override
   void dispose() {
-    // Cancel the stream subscription when disposing of the ViewModel
     _reservationsSubscription?.cancel();
     super.dispose();
   }

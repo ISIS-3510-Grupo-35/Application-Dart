@@ -1,23 +1,36 @@
+import 'package:flutter/material.dart';
 import 'package:application_dart/models/review.dart';
 import 'package:application_dart/repositories/review.dart';
-import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 
-class ReviewsViewModel extends ChangeNotifier {
-  final ReviewRepository _repository = GetIt.instance<ReviewRepository>();
-  
+class ReviewViewModel extends ChangeNotifier {
+  // Repository created internally, no parameters required
+  final ReviewRepository _repository = ReviewRepository();
+
+  bool isLoading = false;
   List<Review> _reviews = [];
-  bool fetchingData = false;
+
   List<Review> get reviews => _reviews;
 
-  Future<void> fetchReviews() async {
-    fetchingData = true;
-    try {
-      _reviews = await _repository.getReviews();
-      notifyListeners();
-    } catch (e) {
-      throw Exception('Failed to load Reviewss: $e');
-    }
-    fetchingData = false;
+  Future<void> loadReviews(String parkingId) async {
+    isLoading = true;
+    notifyListeners();
+    _reviews = await _repository.getReviewsForParkingLot(parkingId);
+    isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> addReview(String parkingId, String rate, String reviewText, String userId) async {
+    isLoading = true;
+    notifyListeners();
+    final review = Review(
+      parkingId: parkingId,
+      rate: rate,
+      review: reviewText,
+      userId: userId,
+    );
+    await _repository.addReview(review);
+    _reviews.add(review);
+    isLoading = false;
+    notifyListeners();
   }
 }

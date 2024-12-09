@@ -29,7 +29,7 @@ void setupLocator() {
   // ViewModels
   locator.registerFactory(() => ParkingLotViewModel());
   locator.registerFactory(() => ReservationViewModel());
-  locator.registerFactory(() => ReviewsViewModel());
+  locator.registerFactory(() => ReviewViewModel());
   locator.registerFactory(() => FirebaseAuthViewModel());
   locator.registerFactory(() => UserAppViewModel());
   locator.registerFactory(() => ParkedViewModel());
